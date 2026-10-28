@@ -11,6 +11,25 @@ VALIDATION_END: Final[int] = 1576
 TEST_START: Final[int] = 1577
 TEST_END: Final[int] = 1941
 
+SPLITS: Final[dict[str, tuple[int, int]]] = {
+    "train": (TRAIN_START, TRAIN_END),
+    "validation": (VALIDATION_START, VALIDATION_END),
+    "test": (TEST_START, TEST_END),
+}
+
+
+def split(df, split_name: str, day_column: str = "day"):
+    """Return a copy of rows within the requested temporal split."""
+    if split_name not in SPLITS:
+        raise ValueError(
+            f"Unknown split {split_name!r}. "
+            f"Choose one of: {', '.join(SPLITS)}."
+        )
+    if day_column not in df.columns:
+        raise ValueError(f"Missing day column: {day_column!r}.")
+    start, end = SPLITS[split_name]
+    return df.loc[df[day_column].between(start, end)].copy()
+
 # Main experimental scenario grid.
 LEAD_TIMES: Final[tuple[int, ...]] = (1, 2)
 SHELF_LIVES: Final[tuple[int, ...]] = (2, 3, 5)
