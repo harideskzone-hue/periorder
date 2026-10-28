@@ -19,3 +19,6 @@ results/*
 !data/processed/.gitkeep
 !models/.gitkeep
 !results/.gitkeep
+
+# Python packaging artifacts
+*.egg-info/

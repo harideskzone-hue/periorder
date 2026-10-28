@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-requirements.txt
-src/periorder/__init__.py
-src/periorder.egg-info/PKG-INFO
-src/periorder.egg-info/SOURCES.txt
-src/periorder.egg-info/dependency_links.txt
-src/periorder.egg-info/requires.txt
-src/periorder.egg-info/top_level.txt
