@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from math import ceil, floor
+from math import ceil, floor, isfinite
 from typing import Literal
 
 from periorder.config import CostParameters
@@ -44,38 +44,43 @@ class SimulationResult:
     """Aggregated results and daily records from one simulation."""
 
     records: tuple[DailyRecord, ...]
+    burn_in_days: int = 0
+
+    @property
+    def scored_records(self) -> tuple[DailyRecord, ...]:
+        return self.records[self.burn_in_days :]
 
     @property
     def total_demand(self) -> int:
-        return sum(record.demand for record in self.records)
+        return sum(record.demand for record in self.scored_records)
 
     @property
     def total_sales(self) -> int:
-        return sum(record.sales for record in self.records)
+        return sum(record.sales for record in self.scored_records)
 
     @property
     def total_lost_sales(self) -> int:
-        return sum(record.lost_sales for record in self.records)
+        return sum(record.lost_sales for record in self.scored_records)
 
     @property
     def total_expired(self) -> int:
-        return sum(record.expired for record in self.records)
+        return sum(record.expired for record in self.scored_records)
 
     @property
     def total_holding_cost(self) -> float:
-        return sum(record.holding_cost for record in self.records)
+        return sum(record.holding_cost for record in self.scored_records)
 
     @property
     def total_stockout_cost(self) -> float:
-        return sum(record.stockout_cost for record in self.records)
+        return sum(record.stockout_cost for record in self.scored_records)
 
     @property
     def total_expiry_cost(self) -> float:
-        return sum(record.expiry_cost for record in self.records)
+        return sum(record.expiry_cost for record in self.scored_records)
 
     @property
     def total_cost(self) -> float:
-        return sum(record.total_cost for record in self.records)
+        return sum(record.total_cost for record in self.scored_records)
 
 
 def _round_target(
@@ -100,6 +105,7 @@ def simulate_inventory(
     costs: CostParameters,
     initial_inventory: int = 0,
     rounding: Literal["ceil", "nearest", "floor"] = "ceil",
+    burn_in_days: int = 0,
 ) -> SimulationResult:
     """Simulate daily lost-sales inventory with FIFO and finite shelf life.
 
@@ -111,19 +117,40 @@ def simulate_inventory(
 
     Orders arriving beyond the simulation horizon are not included in
     daily costs. No terminal pipeline penalty is applied.
+
+    If burn_in_days > 0, simulation begins with warm-up for the specified
+    days, and inventory/pipeline state is preserved into scored days while
+    burn-in costs are excluded from reported aggregate totals.
     """
-    if lead_time < 0:
-        raise ValueError("lead_time must be non-negative.")
-    if shelf_life < 1:
-        raise ValueError("shelf_life must be at least 1.")
-    if initial_inventory < 0:
-        raise ValueError("initial_inventory must be non-negative.")
+    if isinstance(lead_time, bool) or not isinstance(lead_time, int) or lead_time < 0:
+        raise ValueError("lead_time must be a non-negative integer.")
+    if isinstance(shelf_life, bool) or not isinstance(shelf_life, int) or shelf_life < 1:
+        raise ValueError("shelf_life must be a positive integer.")
+    if (
+        isinstance(initial_inventory, bool)
+        or not isinstance(initial_inventory, int)
+        or initial_inventory < 0
+    ):
+        raise ValueError("initial_inventory must be a non-negative integer.")
+    if (
+        isinstance(burn_in_days, bool)
+        or not isinstance(burn_in_days, int)
+        or burn_in_days < 0
+    ):
+        raise ValueError("burn_in_days must be a non-negative integer.")
+    if len(demand) == 0:
+        raise ValueError("demand cannot be empty.")
+    if burn_in_days >= len(demand):
+        raise ValueError("burn_in_days must be shorter than simulation duration.")
 
     if any(
         isinstance(value, bool) or not isinstance(value, int) or value < 0
         for value in demand
     ):
         raise ValueError("Demand values must be non-negative integers.")
+
+    if isinstance(order_up_to, bool):
+        raise TypeError("order_up_to cannot be boolean.")
 
     if isinstance(order_up_to, (int, float)):
         targets = [float(order_up_to)] * len(demand)
@@ -132,8 +159,8 @@ def simulate_inventory(
 
     if len(targets) != len(demand):
         raise ValueError("order_up_to must be a scalar or match demand length.")
-    if any(value < 0 for value in targets):
-        raise ValueError("Order-up-to targets must be non-negative.")
+    if any(not isfinite(value) or value < 0 for value in targets):
+        raise ValueError("Order-up-to targets must be finite and non-negative.")
 
     if rounding not in ("ceil", "nearest", "floor"):
         raise ValueError("Invalid rounding method.")
@@ -218,4 +245,7 @@ def simulate_inventory(
             )
         )
 
-    return SimulationResult(records=tuple(records))
+    return SimulationResult(
+        records=tuple(records),
+        burn_in_days=burn_in_days,
+    )
