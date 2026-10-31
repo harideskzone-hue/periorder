@@ -13,7 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from periorder.config import calibrate_costs
+from periorder.integrations.registry import get_connector, list_available_providers
+from periorder.inventory.batches import BatchTracker
+from periorder.inventory.ledger import InventoryLedger, MovementType
+from periorder.sales.ingestion import SalesIngestionPipeline
 from periorder.simulator import simulate_inventory
+from periorder.tenants.service import TenantService
 
 app = FastAPI(
     title="PeriOrder Analytics API",
@@ -944,5 +949,244 @@ def get_store_manager_reports():
             "illustrative_data": "Department dollar costs and monthly dollar savings are illustrative scale-ups for demonstration. Real dollar savings depend on store-specific supplier contracts and prices.",
             "disclaimer": "Historical M5 dataset series used for validation; values do not represent live telemetry from an operating grocery store.",
         },
+    }
+
+
+# --- Multi-Tenant & POS Integration Services ---
+tenant_service = TenantService()
+inventory_ledger = InventoryLedger()
+batch_tracker = BatchTracker()
+sales_pipeline = SalesIngestionPipeline(ledger=inventory_ledger, batch_tracker=batch_tracker)
+
+
+def _seed_initial_store_inventory():
+    demo_items = [
+        ("FOODS_2_043_CA_1", 14, 3, 2.40),
+        ("FOODS_2_021_TX_1", 18, 1, 1.60),
+        ("FOODS_1_012_TX_1", 42, 5, 2.10),
+        ("FOODS_1_018_CA_4", 9, 2, 3.10),
+        ("FOODS_2_015_WI_3", 26, 7, 2.80),
+        ("FOODS_2_089_CA_2", 22, 2, 2.20),
+        ("FOODS_3_100_TX_2", 11, 2, 4.50),
+        ("FOODS_3_045_WI_1", 19, 3, 4.50),
+        ("FOODS_1_024_WI_3", 8, 3, 3.00),
+        ("FOODS_2_033_CA_3", 35, 14, 3.50),
+        ("FOODS_1_006_WI_3", 6, 2, 2.00),
+        ("FOODS_2_008_TX_3", 15, 2, 1.60),
+    ]
+    for pid, qty, shelf_life, cost in demo_items:
+        inventory_ledger.record_movement(
+            tenant_id="tenant_default",
+            store_id="CA_1",
+            product_id=pid,
+            movement_type=MovementType.PURCHASE_RECEIPT,
+            quantity=qty,
+            reference_id="INIT_STOCK",
+            notes="Initial stock allocation",
+        )
+        batch_tracker.receive_batch(
+            tenant_id="tenant_default",
+            store_id="CA_1",
+            product_id=pid,
+            quantity=qty,
+            shelf_life_days=shelf_life,
+            unit_cost=cost,
+        )
+
+
+_seed_initial_store_inventory()
+
+
+class POSConnectRequest(BaseModel):
+    tenant_id: str = "tenant_default"
+    store_id: str = "CA_1"
+    provider: str = "generic_mock"
+    credentials: dict[str, Any] = Field(default_factory=dict)
+
+
+class POSTransactionWebhook(BaseModel):
+    event_id: str | None = None
+    event_type: str = "pos.transaction.completed"
+    transaction_id: str
+    tenant_id: str = "tenant_default"
+    store_id: str = "CA_1"
+    timestamp: str | None = None
+    items: list[dict[str, Any]]
+    total_amount: float = 0.0
+
+
+@app.get("/api/tenants")
+def get_tenants():
+    """Lists registered tenant businesses."""
+    return {"tenants": [t.__dict__ for t in tenant_service._tenants.values()]}
+
+
+@app.get("/api/stores")
+def get_stores(tenant_id: str = "tenant_default"):
+    """Returns stores belonging to the requested tenant (enforces tenant isolation)."""
+    stores = tenant_service.list_stores_for_tenant(tenant_id)
+    return {
+        "tenant_id": tenant_id,
+        "stores": [s.__dict__ for s in stores],
+        "total_stores": len(stores),
+    }
+
+
+@app.get("/api/pos/providers")
+def get_pos_providers():
+    """Returns list of supported POS provider adapters."""
+    return {"providers": list_available_providers()}
+
+
+@app.post("/api/pos/connect")
+def connect_pos(req: POSConnectRequest):
+    """Connects a store to a POS provider adapter."""
+    try:
+        connector = get_connector(req.provider)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    authenticated = connector.authenticate(req.credentials or {"api_key": "mock_key"})
+    if not authenticated:
+        raise HTTPException(status_code=401, detail="Failed to authenticate with POS provider.")
+
+    try:
+        store = tenant_service.update_pos_connection(
+            tenant_id=req.tenant_id,
+            store_id=req.store_id,
+            provider=req.provider,
+            connected=True,
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+    return {
+        "status": "connected",
+        "tenant_id": req.tenant_id,
+        "store_id": req.store_id,
+        "provider": req.provider,
+        "store_name": store.store_name,
+        "message": f"Successfully connected store {req.store_id} to POS provider '{req.provider}'.",
+    }
+
+
+@app.get("/api/pos/status")
+def get_pos_status(tenant_id: str = "tenant_default", store_id: str = "CA_1"):
+    """Returns the current POS synchronization and connection status."""
+    store = tenant_service.get_store(tenant_id, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail=f"Store {store_id} not found for tenant {tenant_id}.")
+
+    recent_txs = sales_pipeline.get_recent_transactions(tenant_id, store_id, limit=5)
+    last_sync = recent_txs[0].created_at.isoformat() if recent_txs else None
+
+    return {
+        "tenant_id": tenant_id,
+        "store_id": store_id,
+        "store_name": store.store_name,
+        "pos_connected": store.pos_connected,
+        "pos_provider": store.pos_provider,
+        "total_transactions_ingested": len(sales_pipeline.get_recent_transactions(tenant_id, store_id, limit=1000)),
+        "last_sync_timestamp": last_sync,
+        "status": "active" if store.pos_connected else "disconnected",
+    }
+
+
+@app.post("/api/pos/webhooks/transactions")
+def ingest_pos_transaction_webhook(webhook: POSTransactionWebhook):
+    """Receives and processes POS sales transaction events idempotently."""
+    store = tenant_service.get_store(webhook.tenant_id, webhook.store_id)
+    if not store:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Store {webhook.store_id} not registered under tenant {webhook.tenant_id}.",
+        )
+
+    try:
+        result = sales_pipeline.process_transaction(
+            tenant_id=webhook.tenant_id,
+            store_id=webhook.store_id,
+            transaction_data=webhook.model_dump(),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    return {
+        "status": result.status,
+        "transaction_id": result.transaction_id,
+        "is_duplicate": result.is_duplicate,
+        "items_deducted": len(result.deductions),
+        "reconciled_stock": result.reconciled_stock,
+        "message": result.message,
+    }
+
+
+@app.get("/api/inventory/ledger")
+def get_inventory_ledger(
+    tenant_id: str = "tenant_default",
+    store_id: str = "CA_1",
+    product_id: str | None = None,
+    limit: int = 50,
+):
+    """Returns isolated audit movements from the immutable inventory ledger."""
+    store = tenant_service.get_store(tenant_id, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found or access denied.")
+
+    movements = inventory_ledger.get_movements(
+        tenant_id=tenant_id,
+        store_id=store_id,
+        product_id=product_id,
+        limit=limit,
+    )
+    return {
+        "tenant_id": tenant_id,
+        "store_id": store_id,
+        "product_id": product_id,
+        "total_returned": len(movements),
+        "movements": [
+            {
+                "movement_id": m.movement_id,
+                "product_id": m.product_id,
+                "type": m.movement_type.value,
+                "quantity": m.quantity,
+                "reference_id": m.reference_id,
+                "timestamp": m.timestamp.isoformat(),
+                "notes": m.notes,
+            }
+            for m in movements
+        ],
+    }
+
+
+@app.get("/api/inventory/batches")
+def get_inventory_batches(
+    tenant_id: str = "tenant_default",
+    store_id: str = "CA_1",
+    product_id: str | None = None,
+):
+    """Returns active perishable batches with computed expiry dates under FIFO."""
+    store = tenant_service.get_store(tenant_id, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found or access denied.")
+
+    batches = batch_tracker.get_batches(tenant_id, store_id, product_id)
+    return {
+        "tenant_id": tenant_id,
+        "store_id": store_id,
+        "total_active_batches": len(batches),
+        "batches": [
+            {
+                "batch_id": b.batch_id,
+                "product_id": b.product_id,
+                "available_quantity": b.quantity,
+                "received_date": b.received_date.isoformat(),
+                "expiry_date": b.expiry_date.isoformat(),
+                "days_until_expiry": b.days_until_expiry,
+                "is_expired": b.is_expired,
+                "unit_cost": b.unit_cost,
+            }
+            for b in batches
+        ],
     }
 
