@@ -78,20 +78,35 @@ class SalesIngestionPipeline:
 
             idempotency_key = (tenant_id, store_id, tx_id)
 
+            items_raw = transaction_data.get("items", [])
+            if not items_raw:
+                raise ValueError("Transaction must contain at least one item.")
+
             # Fast in-memory idempotency check
             if idempotency_key in self._processed_transactions:
+                existing_tx = next(
+                    (
+                        t
+                        for t in self._transactions
+                        if t.tenant_id == tenant_id and t.store_id == store_id and t.transaction_id == tx_id
+                    ),
+                    None,
+                )
+                if existing_tx and not self._is_payload_equivalent(existing_tx.raw_payload or {}, transaction_data):
+                    raise ValueError(
+                        f"Payload conflict: Transaction ID '{tx_id}' was previously recorded with different payload content. "
+                        "Cannot reuse an existing transaction ID for different items."
+                    )
                 return IngestionResult(
                     status="duplicate_skipped",
                     transaction_id=tx_id,
                     is_duplicate=True,
                     deductions=[],
-                    reconciled_stock=self._get_stock_snapshot(tenant_id, store_id, []),
+                    reconciled_stock=self._get_stock_snapshot(
+                        tenant_id, store_id, [it.get("product_id") for it in items_raw if it.get("product_id")]
+                    ),
                     message=f"Transaction {tx_id} was already ingested; duplicate event skipped safely.",
                 )
-
-            items_raw = transaction_data.get("items", [])
-            if not items_raw:
-                raise ValueError("Transaction must contain at least one item.")
 
             # Validate items upfront before beginning transaction
             parsed_items: list[SalesItem] = []
@@ -151,15 +166,25 @@ class SalesIngestionPipeline:
             with UnitOfWork(session_factory=self._session_factory) as uow:
                 assert uow.session is not None
 
-                # 1. Database idempotency check
-                if uow.pos_transactions.is_duplicate(tenant_id, store_id, tx_id):
+                # 1. Database idempotency check with payload collision detection
+                existing_tx = uow.pos_transactions.get_transaction(tenant_id, store_id, tx_id)
+                if existing_tx:
+                    existing_raw = json.loads(existing_tx.raw_payload_json) if existing_tx.raw_payload_json else {}
+                    if not self._is_payload_equivalent(existing_raw, transaction_data):
+                        raise ValueError(
+                            f"Payload conflict: Transaction ID '{tx_id}' was previously recorded with different payload content. "
+                            "Cannot reuse an existing transaction ID for different items."
+                        )
+
                     self._processed_transactions.add(idempotency_key)
                     return IngestionResult(
                         status="duplicate_skipped",
                         transaction_id=tx_id,
                         is_duplicate=True,
                         deductions=[],
-                        reconciled_stock=self._get_stock_snapshot(tenant_id, store_id, [it.product_id for it in parsed_items]),
+                        reconciled_stock=self._get_stock_snapshot(
+                            tenant_id, store_id, [it.product_id for it in parsed_items]
+                        ),
                         message=f"Transaction {tx_id} was already ingested; duplicate event skipped safely.",
                     )
 
@@ -176,17 +201,6 @@ class SalesIngestionPipeline:
                 # 3. Process each line item
                 for item in parsed_items:
                     # Append-only persistent inventory ledger movement
-                    uow.inventory_ledger.record_movement(
-                        tenant_id=tenant_id,
-                        store_id=store_id,
-                        product_id=item.product_id,
-                        movement_type="pos_sale",
-                        quantity=-item.quantity,
-                        reference_id=tx_id,
-                        notes=f"POS Sale: {item.quantity} units @ ${item.unit_price:.2f}",
-                    )
-
-                    # In-memory ledger synchronization (if configured)
                     if self.ledger is not None:
                         mov = self.ledger.record_movement(
                             tenant_id=tenant_id,
@@ -196,8 +210,19 @@ class SalesIngestionPipeline:
                             quantity=-item.quantity,
                             reference_id=tx_id,
                             notes=f"POS Sale: {item.quantity} units @ ${item.unit_price:.2f}",
+                            uow=uow,
                         )
                         recorded_movements.append(mov)
+                    else:
+                        uow.inventory_ledger.record_movement(
+                            tenant_id=tenant_id,
+                            store_id=store_id,
+                            product_id=item.product_id,
+                            movement_type="pos_sale",
+                            quantity=-item.quantity,
+                            reference_id=tx_id,
+                            notes=f"POS Sale: {item.quantity} units @ ${item.unit_price:.2f}",
+                        )
 
                     # FIFO batch deduction (in-memory if configured)
                     if self.batch_tracker is not None:
@@ -220,7 +245,9 @@ class SalesIngestionPipeline:
 
                     # Read stock
                     if self.ledger is not None:
-                        updated_stocks[item.product_id] = self.ledger.get_stock(tenant_id, store_id, item.product_id)
+                        updated_stocks[item.product_id] = self.ledger.get_stock(
+                            tenant_id, store_id, item.product_id, uow=uow
+                        )
                     else:
                         updated_stocks[item.product_id] = uow.inventory_ledger.get_current_stock(
                             tenant_id, store_id, item.product_id
@@ -248,13 +275,25 @@ class SalesIngestionPipeline:
             if self.batch_tracker is not None:
                 self.batch_tracker.restore_deductions(all_deductions)
 
+            # Check committed transaction payload in fresh session to detect conflict
+            with UnitOfWork(session_factory=self._session_factory) as check_uow:
+                committed_tx = check_uow.pos_transactions.get_transaction(tenant_id, store_id, tx_id)
+                if committed_tx:
+                    raw = json.loads(committed_tx.raw_payload_json) if committed_tx.raw_payload_json else {}
+                    if not self._is_payload_equivalent(raw, transaction_data):
+                        raise ValueError(
+                            f"Payload conflict: Transaction ID '{tx_id}' was previously recorded with different payload content. "
+                            "Cannot reuse an existing transaction ID for different items."
+                        )
+
             self._processed_transactions.add(idempotency_key)
             return IngestionResult(
                 status="duplicate_skipped",
                 transaction_id=tx_id,
                 is_duplicate=True,
                 deductions=[],
-                reconciled_stock=updated_stocks,
+                reconciled_stock=updated_stocks
+                or self._get_stock_snapshot(tenant_id, store_id, [it.product_id for it in parsed_items]),
                 message=f"Transaction {tx_id} was already ingested; duplicate event skipped safely.",
             )
 
@@ -361,7 +400,58 @@ class SalesIngestionPipeline:
     def _get_stock_snapshot(self, tenant_id: str, store_id: str, product_ids: list[str]) -> dict[str, int]:
         if self.ledger is not None:
             return {pid: self.ledger.get_stock(tenant_id, store_id, pid) for pid in product_ids}
+        if self._session_factory is not None:
+            with UnitOfWork(session_factory=self._session_factory) as uow:
+                return {pid: uow.inventory_ledger.get_current_stock(tenant_id, store_id, pid) for pid in product_ids}
         return {}
+
+    @staticmethod
+    def _is_payload_equivalent(p1: dict[str, Any], p2: dict[str, Any]) -> bool:
+        """Compare two transaction payloads canonically to detect payload collisions on duplicate IDs."""
+        if not p1 or not p2:
+            return p1 == p2
+
+        # 1. Total amount comparison (if both specify positive amounts)
+        tot1 = float(p1.get("total_amount") or 0.0)
+        tot2 = float(p2.get("total_amount") or 0.0)
+        if tot1 > 0 and tot2 > 0 and round(tot1, 2) != round(tot2, 2):
+            return False
+
+        # 2. Canonical items comparison by product_id and quantity
+        items1 = sorted(
+            [
+                (
+                    str(it.get("product_id")),
+                    int(it.get("quantity", 1)),
+                    round(float(it.get("unit_price", 0.0)), 2),
+                )
+                for it in p1.get("items", [])
+            ],
+            key=lambda x: x[0],
+        )
+        items2 = sorted(
+            [
+                (
+                    str(it.get("product_id")),
+                    int(it.get("quantity", 1)),
+                    round(float(it.get("unit_price", 0.0)), 2),
+                )
+                for it in p2.get("items", [])
+            ],
+            key=lambda x: x[0],
+        )
+
+        if len(items1) != len(items2):
+            return False
+
+        for (pid1, q1, price1), (pid2, q2, price2) in zip(items1, items2, strict=False):
+            if pid1 != pid2 or q1 != q2:
+                return False
+            # Check prices only if both specify a price
+            if price1 > 0 and price2 > 0 and price1 != price2:
+                return False
+
+        return True
 
     def get_recent_transactions(
         self,
@@ -403,7 +493,6 @@ class SalesIngestionPipeline:
             except (SQLAlchemyError, OSError):
                 # Database query failure; fallback to in-memory transaction history
                 results = []
-
 
         results = [
             tx

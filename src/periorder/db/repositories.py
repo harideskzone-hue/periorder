@@ -125,6 +125,7 @@ class InventoryLedgerRepository:
         quantity: int,
         reference_id: str | None = None,
         notes: str | None = None,
+        created_at: datetime.datetime | None = None,
     ) -> InventoryMovementModel:
         movement = InventoryMovementModel(
             tenant_id=tenant_id,
@@ -134,6 +135,7 @@ class InventoryLedgerRepository:
             quantity=quantity,
             reference_id=reference_id,
             notes=notes,
+            created_at=created_at or datetime.datetime.now(datetime.UTC),
         )
         self.session.add(movement)
         self.session.flush()
@@ -255,6 +257,16 @@ class POSTransactionRepository:
             POSTransactionModel.transaction_id == transaction_id,
         )
         return (self.session.scalar(stmt) or 0) > 0
+
+    def get_transaction(
+        self, tenant_id: str, store_id: str, transaction_id: str
+    ) -> POSTransactionModel | None:
+        stmt = select(POSTransactionModel).where(
+            POSTransactionModel.tenant_id == tenant_id,
+            POSTransactionModel.store_id == store_id,
+            POSTransactionModel.transaction_id == transaction_id,
+        )
+        return self.session.scalars(stmt).first()
 
     def record_transaction(
         self,

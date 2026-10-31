@@ -1,5 +1,6 @@
 """Tests for multi-tenant isolation, inventory movement ledger, FIFO batches, and POS webhooks."""
 
+import uuid
 from datetime import date
 
 from fastapi.testclient import TestClient
@@ -140,7 +141,7 @@ def test_api_pos_connect_and_status():
 
 
 def test_api_pos_webhook_transaction_flow():
-    tx_id = f"TX_API_{int(date.today().strftime('%Y%m%d'))}_9999"
+    tx_id = f"TX_API_{int(date.today().strftime('%Y%m%d'))}_{uuid.uuid4().hex[:6]}"
     webhook_payload = {
         "event_id": f"evt_{tx_id}",
         "event_type": "pos.transaction.completed",

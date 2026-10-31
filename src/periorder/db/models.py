@@ -159,6 +159,7 @@ class InventoryMovementModel(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.UTC),
         server_default=func.now(),
         nullable=False,
     )

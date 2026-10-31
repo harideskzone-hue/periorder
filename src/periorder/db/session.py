@@ -64,6 +64,10 @@ def create_app_engine(database_url: str | None = None, echo: bool = False) -> En
 
         return engine
 
+    # Normalize default postgresql driver to psycopg2 if unspecified
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
     # PostgreSQL configuration
     return create_engine(
         url,

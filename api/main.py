@@ -16,7 +16,6 @@ from periorder.auth import auth_router
 from periorder.config import calibrate_costs
 from periorder.db import get_session_factory
 from periorder.integrations.market import get_market_provider
-
 from periorder.integrations.ocr import get_ocr_provider
 from periorder.integrations.registry import get_connector, list_available_providers
 from periorder.inventory.batches import BatchTracker
@@ -47,7 +46,7 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 
 # --- Multi-Tenant, Multi-Store & POS Ingestion Services ---
 tenant_service = TenantService()
-inventory_ledger = InventoryLedger()
+inventory_ledger = InventoryLedger(session_factory=get_session_factory())
 batch_tracker = BatchTracker()
 sales_pipeline = SalesIngestionPipeline(
     ledger=inventory_ledger,
@@ -1718,12 +1717,16 @@ def get_inventory_ledger(
     if not store:
         raise HTTPException(status_code=404, detail="Store not found or access denied.")
 
-    movements = inventory_ledger.get_movements(
-        tenant_id=tenant_id,
-        store_id=store_id,
-        product_id=product_id,
-        limit=limit,
-    )
+    try:
+        movements = inventory_ledger.get_movements(
+            tenant_id=tenant_id,
+            store_id=store_id,
+            product_id=product_id,
+            limit=limit,
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
     return {
         "tenant_id": tenant_id,
         "store_id": store_id,
@@ -1733,14 +1736,71 @@ def get_inventory_ledger(
             {
                 "movement_id": m.movement_id,
                 "product_id": m.product_id,
-                "type": m.movement_type.value,
+                "type": m.movement_type.value if isinstance(m.movement_type, MovementType) else str(m.movement_type),
                 "quantity": m.quantity,
                 "reference_id": m.reference_id,
-                "timestamp": m.timestamp.isoformat(),
+                "timestamp": m.timestamp.isoformat() if hasattr(m.timestamp, "isoformat") else str(m.timestamp),
                 "notes": m.notes,
             }
             for m in movements
         ],
+    }
+
+
+class StockAdjustmentRequest(BaseModel):
+    tenant_id: str = "tenant_default"
+    store_id: str = "CA_1"
+    product_id: str
+    corrected_quantity: int
+    reason: str | None = None
+    reference_id: str | None = None
+
+
+@app.post("/api/inventory/adjustment")
+def record_stock_adjustment(req: StockAdjustmentRequest):
+    """Record an append-only physical stock adjustment in the persistent ledger."""
+    store = tenant_service.get_store(req.tenant_id, req.store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found or access denied.")
+
+    try:
+        movement = inventory_ledger.record_correction(
+            tenant_id=req.tenant_id,
+            store_id=req.store_id,
+            product_id=req.product_id,
+            corrected_quantity=req.corrected_quantity,
+            reference_id=req.reference_id,
+            reason=req.reason,
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    current_stock = inventory_ledger.get_stock(req.tenant_id, req.store_id, req.product_id)
+    return {
+        "status": "success",
+        "product_id": req.product_id,
+        "reconciled_stock": current_stock,
+        "movement": (
+            {
+                "movement_id": movement.movement_id,
+                "quantity": movement.quantity,
+                "type": (
+                    movement.movement_type.value
+                    if isinstance(movement.movement_type, MovementType)
+                    else str(movement.movement_type)
+                ),
+                "notes": movement.notes,
+            }
+            if movement
+            else None
+        ),
+        "message": (
+            "Stock adjusted successfully"
+            if movement
+            else "No adjustment required; stock already matches target."
+        ),
     }
 
 
