@@ -1,0 +1,5 @@
+hypothesis,comparison,type,dataset,mean_difference,perm_count,exact_sign_flip_p,holm_adjusted_p,interpretation
+H1,QR-TU vs MR-TU,Confirmatory,Primary (eta=0.20),-3.24%,2/1024,0.001953125,0.00390625,QR-TU achieves statistically significant lower cost than MR-TU.
+H2,QR-TU vs QR-CR,Confirmatory,Primary (eta=0.20),-2.69%,2/1024,0.001953125,0.00390625,QR-TU achieves statistically significant lower cost than QR-CR.
+H3,Tuning gain: eta=0.20 vs eta=1.00,Exploratory,Primary + Sensitivity,-8.98 pp,2/1024,0.001953125,,Tuning gain is significantly larger when holding cost share is high (eta=1.00).
+H4,Tuning gain: m/l <= 1 vs m/l >= 1.5,Exploratory,Primary (eta=0.20),-1.22 pp,8/1024,0.0078125,,Tuning gain is significantly larger when shelf life is long relative to protection horizon (m/l >= 1.5).

@@ -7,18 +7,45 @@ __pycache__/
 .env.*
 !.env.example
 .DS_Store
+logs/
+*.log
 
+# Node dependencies and build
+node_modules/
+dashboard/node_modules/
+dashboard/dist/
+
+# Raw and interim data
 data/raw/*
 data/interim/*
 data/processed/*
 models/*
-results/*
 
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 !data/processed/.gitkeep
 !models/.gitkeep
+
+# Ignore large series-level and raw prediction result files
+results/*
 !results/.gitkeep
+
+# Preserve key empirical summary and hypothesis results
+!results/hypothesis_tests_H1_H4.csv
+!results/store_level_hypothesis_results.csv
+!results/experiment_service_metrics_series_csl.csv
+!results/experiment_test_summary.csv
+!results/experiment_sensitivity_holding_shares.csv
+!results/experiment_method_statistics.csv
+!results/experiment_paired_statistics.csv
+!results/experiment_pooled_statistics.csv
+!results/experiment_selected_quantiles.csv
+!results/experiment_tu_vs_cr.csv
+!results/experiment_best_policy_by_scenario.csv
+!results/qr_evaluation.csv
+!results/mr_evaluation.csv
+!results/nb_evaluation.csv
+!results/sample_counts.csv
 
 # Python packaging artifacts
 *.egg-info/
