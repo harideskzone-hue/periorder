@@ -12,6 +12,7 @@ import {
   StoreProduct,
   SuggestedOrder,
   DemandOutlookResponse,
+  StoreManagerReportsResponse,
 } from '../types';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
@@ -69,6 +70,12 @@ export async function approveOrders(orderIds: string[], quantities?: Record<stri
 export async function fetchDemandOutlook(): Promise<DemandOutlookResponse> {
   const res = await fetch(`${API_BASE}/store-manager/demand-outlook`);
   if (!res.ok) throw new Error('Failed to fetch demand outlook');
+  return res.json();
+}
+
+export async function fetchStoreManagerReports(): Promise<StoreManagerReportsResponse> {
+  const res = await fetch(`${API_BASE}/store-manager/reports`);
+  if (!res.ok) throw new Error('Failed to fetch store reports');
   return res.json();
 }
 

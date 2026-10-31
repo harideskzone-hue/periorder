@@ -69,3 +69,28 @@ def test_store_manager_approve_orders_empty_list():
         json={"order_ids": [], "quantities": {}},
     )
     assert response.status_code == 422
+
+
+def test_store_manager_demand_outlook():
+    response = client.get("/api/store-manager/demand-outlook")
+    assert response.status_code == 200
+    data = response.json()
+    assert "weekly_outlook" in data
+    assert "peak_day" in data
+    assert "tomorrow_forecast" in data
+    assert "fast_moving_products" in data
+    assert len(data["fast_moving_products"]) > 0
+
+
+def test_store_manager_reports():
+    response = client.get("/api/store-manager/reports")
+    assert response.status_code == 200
+    data = response.json()
+    assert "evaluation_horizon" in data
+    assert data["evaluation_horizon"]["lead_time_1_scored_days"] == 356
+    assert data["evaluation_horizon"]["lead_time_2_scored_days"] == 355
+    assert "headline_metrics" in data
+    assert data["headline_metrics"]["days_without_stockouts_pct"] == 81.1
+    assert data["headline_metrics"]["empirical_cost_reduction_pct"] == 2.69
+    assert "category_performance" in data
+    assert len(data["category_performance"]) == 4

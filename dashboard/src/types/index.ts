@@ -87,10 +87,74 @@ export interface DemandOutlookDay {
   status: string;
 }
 
+export interface FastMovingProduct {
+  id: string;
+  name: string;
+  category: string;
+  weekly_expected_units: number;
+  momentum: string;
+  reason: string;
+}
+
 export interface DemandOutlookResponse {
   summary: string;
   weekly_outlook: DemandOutlookDay[];
   recommended_focus: string;
+  peak_day?: {
+    day: string;
+    expected_units: number;
+    surge_pct: string;
+  };
+  tomorrow_forecast?: {
+    day: string;
+    expected_units: number;
+    range_low: number;
+    range_high: number;
+  };
+  weekly_total_units?: number;
+  busy_days?: string[];
+  fast_moving_products?: FastMovingProduct[];
+  data_origin?: string;
+}
+
+export interface CategoryPerformanceItem {
+  category: string;
+  smart_cost: number;
+  traditional_cost: number;
+  savings: number;
+  savings_pct: number;
+  stockout_rate: number;
+  waste_rate: number;
+}
+
+export interface StoreManagerReportsResponse {
+  evaluation_horizon: {
+    lead_time_1_scored_days: number;
+    lead_time_2_scored_days: number;
+    burn_in_days: number;
+    total_products: number;
+    total_stores: number;
+  };
+  headline_metrics: {
+    days_without_stockouts_pct: number;
+    days_without_stockouts_expl: string;
+    demand_fulfilled_pct: number;
+    demand_fulfilled_expl: string;
+    stockout_rate_pct: number;
+    stockout_rate_expl: string;
+    spoilage_waste_pct: number;
+    spoilage_waste_expl: string;
+    empirical_cost_reduction_pct: number;
+    empirical_cost_reduction_expl: string;
+    estimated_monthly_savings_usd: number;
+    estimated_monthly_savings_expl: string;
+  };
+  category_performance: CategoryPerformanceItem[];
+  data_origin_notice: {
+    verified_empirical_data: string;
+    illustrative_data: string;
+    disclaimer: string;
+  };
 }
 
 // --- Research Types ---
