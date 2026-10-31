@@ -9,12 +9,38 @@ from typing import Any
 import bcrypt
 import jwt
 
-# Secret key and algorithm configuration
-# PERIORDER_JWT_SECRET environment variable overrides default dev key
+# Fallback development secret key (strictly disallowed in production)
 DEFAULT_JWT_SECRET = "periorder_super_secure_jwt_secret_dev_key_2026_xyz"
-JWT_SECRET_KEY = os.environ.get("PERIORDER_JWT_SECRET", DEFAULT_JWT_SECRET)
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+
+
+def get_jwt_secret() -> str:
+    """Retrieve JWT signing secret with strict production security enforcement.
+
+    In production (PERIORDER_ENV=production or ENV=production):
+    - Raises RuntimeError if PERIORDER_JWT_SECRET is missing.
+    - Raises RuntimeError if PERIORDER_JWT_SECRET uses the predictable default dev key.
+    - Raises RuntimeError if PERIORDER_JWT_SECRET is shorter than 32 characters.
+    """
+    env = os.environ.get("PERIORDER_ENV", os.environ.get("ENV", "development")).lower()
+    is_production = env in ("production", "prod")
+    secret = os.environ.get("PERIORDER_JWT_SECRET")
+
+    if is_production:
+        if not secret:
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION: PERIORDER_JWT_SECRET environment variable "
+                "must be explicitly configured in production."
+            )
+        if secret == DEFAULT_JWT_SECRET or len(secret) < 32:
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION: Insecure PERIORDER_JWT_SECRET detected. "
+                "Production secret key must be unique, non-default, and at least 32 characters long."
+            )
+        return secret
+
+    return secret or DEFAULT_JWT_SECRET
 
 
 def hash_password(password: str) -> str:
@@ -44,11 +70,11 @@ def create_access_token(
         expire = now + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire, "iat": now})
-    secret = os.environ.get("PERIORDER_JWT_SECRET", JWT_SECRET_KEY)
+    secret = get_jwt_secret()
     return jwt.encode(to_encode, secret, algorithm=JWT_ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
     """Decode and validate a JWT access token."""
-    secret = os.environ.get("PERIORDER_JWT_SECRET", JWT_SECRET_KEY)
+    secret = get_jwt_secret()
     return jwt.decode(token, secret, algorithms=[JWT_ALGORITHM])

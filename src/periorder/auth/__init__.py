@@ -17,6 +17,7 @@ from periorder.auth.schemas import (
 from periorder.auth.security import (
     create_access_token,
     decode_access_token,
+    get_jwt_secret,
     hash_password,
     verify_password,
 )
@@ -32,7 +33,9 @@ __all__ = [
     "decode_access_token",
     "get_current_tenant",
     "get_current_user",
+    "get_jwt_secret",
     "hash_password",
+
     "oauth2_scheme",
     "verify_password",
     "verify_store_access",

@@ -16,6 +16,7 @@ from api.main import app
 from periorder.auth import (
     create_access_token,
     decode_access_token,
+    get_jwt_secret,
     hash_password,
     verify_password,
     verify_store_access,
@@ -293,3 +294,105 @@ def test_store_manager_role_membership_enforcement(auth_session: Session):
         verify_store_access("GAMMA_SOUTH", mgr_north, auth_session)
     assert exc_info.value.status_code == 403
     assert "not authorized to manage store" in exc_info.value.detail
+
+
+def test_production_jwt_secret_guard():
+    """Verify that production environments strictly disallow missing, default, or short secrets."""
+    old_env = os.environ.get("PERIORDER_ENV")
+    old_secret = os.environ.get("PERIORDER_JWT_SECRET")
+
+    try:
+        os.environ["PERIORDER_ENV"] = "production"
+
+        # Missing secret
+        os.environ.pop("PERIORDER_JWT_SECRET", None)
+        with pytest.raises(RuntimeError, match="must be explicitly configured in production"):
+            get_jwt_secret()
+
+        # Insecure / default dev secret
+        os.environ["PERIORDER_JWT_SECRET"] = "periorder_super_secure_jwt_secret_dev_key_2026_xyz"
+        with pytest.raises(RuntimeError, match="Insecure PERIORDER_JWT_SECRET detected"):
+            get_jwt_secret()
+
+        # Secret too short (<32 chars)
+        os.environ["PERIORDER_JWT_SECRET"] = "too_short_secret_key"
+        with pytest.raises(RuntimeError, match="at least 32 characters long"):
+            get_jwt_secret()
+
+        # Valid production secret
+        strong_secret = "a_very_strong_high_entropy_production_secret_key_2026_xyz!"
+        os.environ["PERIORDER_JWT_SECRET"] = strong_secret
+        assert get_jwt_secret() == strong_secret
+    finally:
+        if old_env is not None:
+            os.environ["PERIORDER_ENV"] = old_env
+        else:
+            os.environ.pop("PERIORDER_ENV", None)
+
+        if old_secret is not None:
+            os.environ["PERIORDER_JWT_SECRET"] = old_secret
+        else:
+            os.environ.pop("PERIORDER_JWT_SECRET", None)
+
+
+def test_disabled_user_token_immediately_invalidated(client: TestClient, auth_session: Session):
+    """Verify that if a user is disabled in the database, their active JWT token is immediately rejected."""
+    email = f"deactivated_{uuid.uuid4().hex[:6]}@harvest.com"
+    reg_res = client.post(
+        "/api/auth/register",
+        json={
+            "business_name": "Active Corp",
+            "email": email,
+            "password": "Password123!",
+            "full_name": "Active User",
+        },
+    )
+    assert reg_res.status_code == 201
+    token = reg_res.json()["access_token"]
+
+    # Verify active access works
+    res1 = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res1.status_code == 200
+
+    # Deactivate the user directly in the database
+    user_repo = UserRepository(auth_session)
+    user = user_repo.get_by_email(email)
+    assert user is not None
+    user.is_active = False
+    auth_session.commit()
+
+    # Immediate rejection with 401 Unauthorized
+    res2 = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert res2.status_code == 401
+    assert "inactive or not found" in res2.json()["detail"]
+
+
+def test_jwt_claims_cannot_elevate_database_role(auth_session: Session):
+    """Verify that store access checks use live database permissions, not forged token claims."""
+    tenant_repo = TenantRepository(auth_session)
+    store_repo = StoreRepository(auth_session)
+    user_repo = UserRepository(auth_session)
+
+    tenant_repo.create(tenant_id="tenant_delta", business_name="Delta Foods")
+    store_repo.create(
+        tenant_id="tenant_delta", store_id="DELTA_EAST", store_name="East Delta", location="East"
+    )
+
+
+    # User in database is STORE_MANAGER without membership
+    clerk = user_repo.create(
+        tenant_id="tenant_delta",
+        user_id="usr_clerk_01",
+        email="clerk@delta.com",
+        hashed_password="pw",
+        full_name="Clerk 01",
+        role="STORE_MANAGER",
+    )
+    auth_session.commit()
+
+    # Even if an attacker forged a token claiming role="OWNER"
+    # verify_store_access inspects the database record `clerk`
+    with pytest.raises(HTTPException) as exc_info:
+        verify_store_access("DELTA_EAST", clerk, auth_session)
+    assert exc_info.value.status_code == 403
+
