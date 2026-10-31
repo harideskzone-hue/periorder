@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from periorder.auth import auth_router
 from periorder.config import calibrate_costs
 from periorder.integrations.market import get_market_provider
 from periorder.integrations.ocr import get_ocr_provider
@@ -27,6 +28,8 @@ app = FastAPI(
     description="Research-Grade Perishable Inventory Analytics and Probabilistic Forecasting API",
     version="1.0.0",
 )
+
+app.include_router(auth_router)
 
 # CORS middleware for frontend dev server
 app.add_middleware(

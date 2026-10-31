@@ -49,3 +49,4 @@ results/*
 
 # Python packaging artifacts
 *.egg-info/
+*.zip
