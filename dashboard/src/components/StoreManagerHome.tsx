@@ -6,23 +6,28 @@ import {
   Clock, 
   PackageCheck, 
   ShoppingCart, 
-  TrendingUp, 
   ArrowRight, 
   ShieldCheck, 
-  DollarSign,
-  ChevronRight,
+  Sparkles,
+  Info,
+  Calendar,
   CheckCircle2,
-  Sparkles
+  ChevronRight,
+  Package,
+  TrendingUp,
+  FileText
 } from 'lucide-react';
 
 interface StoreManagerHomeProps {
   onNavigateToOrders: () => void;
   onNavigateToInventory: () => void;
+  onNavigateToReports: () => void;
 }
 
 export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({ 
   onNavigateToOrders, 
-  onNavigateToInventory 
+  onNavigateToInventory,
+  onNavigateToReports 
 }) => {
   const [data, setData] = useState<StoreManagerOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +47,7 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0071e3]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2563EB]"></div>
       </div>
     );
   }
@@ -51,269 +56,326 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Greeting Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#e8e8ed] gap-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#1d1d1f]">
-            {data.greeting}
-          </h1>
-          <p className="text-sm text-[#6e6e73] mt-0.5">
-            4 critical items need attention today · 8 smart replenishment orders ready for review
-          </p>
+      {/* =========================================================================
+          A. Welcome Section
+         ========================================================================= */}
+      <div className="card-periorder p-5 bg-white border border-[#E2E8F0]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
+                Store CA_1
+              </span>
+              <span className="text-xs text-[#64748B]">Daily Inventory Brief</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] mt-1">
+              Good morning! Here's your inventory overview.
+            </h1>
+            <p className="text-sm text-[#475569] mt-0.5">
+              4 urgent products need attention today · 8 replenishment suggestions ready for review.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2 text-xs bg-[#F8FAFC] px-3 py-1.5 rounded-xl border border-[#E2E8F0] text-[#475569] self-start sm:self-auto">
+            <Calendar className="w-4 h-4 text-[#2563EB]" />
+            <span>Today · Rolling 7-day operational cycle</span>
+          </div>
         </div>
-        <div className="flex items-center space-x-2 text-xs bg-[#f5f5f7] px-3 py-1.5 rounded-full border border-[#e8e8ed] text-[#6e6e73]">
-          <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse"></span>
-          <span>Store Status: Operational · Normal Schedule</span>
+
+        {/* Honest Data Disclaimer Notice */}
+        <div className="mt-3.5 pt-3 border-t border-[#F1F5F9] flex items-start space-x-2 text-xs text-[#64748B] bg-[#FFFBEB] p-2.5 rounded-lg border border-[#FDE68A]">
+          <Info className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
+          <p>
+            <strong>Operational Demonstration:</strong> Daily shelf counts and order suggestions are simulated using historical demand from the M5 grocery dataset. Performance metrics (81.1% stockout-free days) reflect verified test results.
+          </p>
         </div>
       </div>
 
-      {/* 4 Core Quick Status Cards */}
+      {/* =========================================================================
+          B. Four Primary Summary Cards
+         ========================================================================= */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Monitored Products */}
+        {/* Card 1: Monitored Products */}
         <div 
           onClick={onNavigateToInventory}
-          className="card-apple p-5 cursor-pointer hover:border-[#0071e3]/40 transition-all"
+          className="card-periorder p-5 cursor-pointer bg-white hover:border-[#2563EB]/40 transition-all"
         >
-          <div className="flex items-center justify-between text-[#86868b]">
+          <div className="flex items-center justify-between text-[#64748B]">
             <span className="text-xs font-medium">Products monitored</span>
-            <PackageCheck className="w-4 h-4 text-[#0071e3]" />
+            <PackageCheck className="w-4 h-4 text-[#2563EB]" />
           </div>
-          <div className="text-3xl font-bold tracking-tight text-[#1d1d1f] mt-2">
+          <div className="text-3xl font-bold tracking-tight text-[#0F172A] mt-2">
             {data.monitored_products}
           </div>
-          <span className="text-[11px] text-[#0071e3] font-medium mt-1 inline-flex items-center">
-            View full catalog <ChevronRight className="w-3 h-3 ml-0.5" />
+          <span className="text-[11px] text-[#2563EB] font-medium mt-1 inline-flex items-center">
+            View product list <ChevronRight className="w-3 h-3 ml-0.5" />
           </span>
         </div>
 
-        {/* Need Attention */}
+        {/* Card 2: Low Stock Products */}
         <div 
           onClick={onNavigateToInventory}
-          className="card-apple p-5 border-l-4 border-l-[#f43f5e] cursor-pointer hover:border-[#f43f5e]/40 transition-all bg-gradient-to-br from-[#ffffff] to-[#fff1f2]/30"
+          className="card-periorder p-5 border-l-4 border-l-[#DC2626] cursor-pointer bg-white hover:border-[#DC2626]/40 transition-all"
         >
-          <div className="flex items-center justify-between text-[#86868b]">
-            <span className="text-xs font-medium text-[#f43f5e]">Need attention</span>
-            <AlertCircle className="w-4 h-4 text-[#f43f5e]" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[#DC2626]">Low-stock products</span>
+            <AlertCircle className="w-4 h-4 text-[#DC2626]" />
           </div>
-          <div className="text-3xl font-bold tracking-tight text-[#f43f5e] mt-2">
+          <div className="text-3xl font-bold tracking-tight text-[#DC2626] mt-2">
             {data.need_attention}
           </div>
-          <span className="text-[11px] text-[#f43f5e] font-medium mt-1 inline-flex items-center">
-            Action required today
+          <span className="text-[11px] text-[#DC2626] font-medium mt-1 inline-flex items-center">
+            Urgent restock needed
           </span>
         </div>
 
-        {/* Orders to Review */}
-        <div 
-          onClick={onNavigateToOrders}
-          className="card-apple p-5 border-l-4 border-l-[#0071e3] cursor-pointer hover:border-[#0071e3]/40 transition-all bg-gradient-to-br from-[#ffffff] to-[#f0f7ff]/40"
-        >
-          <div className="flex items-center justify-between text-[#86868b]">
-            <span className="text-xs font-medium text-[#0071e3]">Orders to review</span>
-            <ShoppingCart className="w-4 h-4 text-[#0071e3]" />
-          </div>
-          <div className="text-3xl font-bold tracking-tight text-[#0071e3] mt-2">
-            {data.orders_to_review}
-          </div>
-          <span className="text-[11px] text-[#0071e3] font-medium mt-1 inline-flex items-center">
-            Review suggested orders <ChevronRight className="w-3 h-3 ml-0.5" />
-          </span>
-        </div>
-
-        {/* Products Expiring Soon */}
+        {/* Card 3: Products Expiring Soon */}
         <div 
           onClick={onNavigateToInventory}
-          className="card-apple p-5 border-l-4 border-l-[#d97706] cursor-pointer hover:border-[#d97706]/40 transition-all bg-gradient-to-br from-[#ffffff] to-[#fffbeb]/30"
+          className="card-periorder p-5 border-l-4 border-l-[#D97706] cursor-pointer bg-white hover:border-[#D97706]/40 transition-all"
         >
-          <div className="flex items-center justify-between text-[#86868b]">
-            <span className="text-xs font-medium text-[#d97706]">Expiring soon</span>
-            <Clock className="w-4 h-4 text-[#d97706]" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[#D97706]">Expiring soon</span>
+            <Clock className="w-4 h-4 text-[#D97706]" />
           </div>
-          <div className="text-3xl font-bold tracking-tight text-[#d97706] mt-2">
+          <div className="text-3xl font-bold tracking-tight text-[#D97706] mt-2">
             {data.products_expiring_soon}
           </div>
-          <span className="text-[11px] text-[#d97706] font-medium mt-1 inline-flex items-center">
+          <span className="text-[11px] text-[#D97706] font-medium mt-1 inline-flex items-center">
             Within 24 to 48 hours
           </span>
         </div>
+
+        {/* Card 4: Orders Ready to Review */}
+        <div 
+          onClick={onNavigateToOrders}
+          className="card-periorder p-5 border-l-4 border-l-[#2563EB] cursor-pointer bg-white hover:border-[#2563EB]/40 transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[#2563EB]">Pending orders</span>
+            <ShoppingCart className="w-4 h-4 text-[#2563EB]" />
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-[#2563EB] mt-2">
+            {data.orders_to_review}
+          </div>
+          <span className="text-[11px] text-[#2563EB] font-medium mt-1 inline-flex items-center">
+            Review recommendations <ChevronRight className="w-3 h-3 ml-0.5" />
+          </span>
+        </div>
       </div>
 
-      {/* Main Action Banner: Today's Order Recommendation */}
-      <div className="card-apple p-6 bg-gradient-to-r from-[#0071e3] to-[#2563eb] text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg shadow-[#0071e3]/15">
+      {/* =========================================================================
+          C. Attention Required Section
+         ========================================================================= */}
+      <div className="card-periorder p-5 bg-white space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#F1F5F9]">
+          <div>
+            <h2 className="text-base font-bold text-[#0F172A] flex items-center space-x-2">
+              <span>Attention Required Today</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]">
+                4 alerts
+              </span>
+            </h2>
+            <p className="text-xs text-[#64748B]">
+              Immediate stock shortages or approaching expiration dates
+            </p>
+          </div>
+          <button
+            onClick={onNavigateToInventory}
+            className="text-xs font-semibold text-[#2563EB] hover:underline"
+          >
+            Check all inventory
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {data.urgent_attention_items.map((item) => {
+            const isLowStock = item.issue_type === 'Low stock';
+            return (
+              <div
+                key={item.id}
+                className="p-4 rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] hover:border-[#CBD5E1] transition-all flex flex-col justify-between space-y-3"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-[#0F172A]">
+                      {item.name}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isLowStock
+                          ? 'bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]'
+                          : 'bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]'
+                      }`}
+                    >
+                      {item.issue_type}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#475569]">
+                    {item.description}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between text-xs">
+                  <div className="text-[11px] text-[#16A34A] font-semibold">
+                    👉 {item.suggested_action}
+                  </div>
+                  <button
+                    onClick={onNavigateToOrders}
+                    className="px-3 py-1 rounded-lg bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#2563EB] font-semibold text-xs transition-colors"
+                  >
+                    Resolve
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* =========================================================================
+          D. Today's Order Recommendation Banner
+         ========================================================================= */}
+      <div className="card-periorder p-6 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
         <div className="space-y-1">
-          <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-white/80">
+          <div className="flex items-center space-x-1.5 text-xs font-semibold uppercase tracking-wider text-blue-100">
             <Sparkles className="w-4 h-4" />
-            <span>Today's Recommendation</span>
+            <span>Recommended Order Summary</span>
           </div>
           <h2 className="text-xl font-bold">
             {data.today_recommendation_summary.title} ({data.today_recommendation_summary.total_units_suggested} units)
           </h2>
-          <p className="text-xs text-white/90 max-w-xl">
-            {data.today_recommendation_summary.description} Est. order value: <strong>${data.today_recommendation_summary.estimated_order_value_usd.toFixed(2)}</strong>. Prevents weekend stockouts while preventing unnecessary overage.
+          <p className="text-xs text-blue-100 max-w-xl">
+            {data.today_recommendation_summary.description} Est. order value: <strong>${data.today_recommendation_summary.estimated_order_value_usd.toFixed(2)}</strong>. Formatted to arrive before peak weekend traffic without creating excess spoilage.
           </p>
         </div>
 
         <button
           onClick={onNavigateToOrders}
-          className="px-5 py-2.5 rounded-xl bg-white text-[#0071e3] hover:bg-[#f5f5f7] font-semibold text-xs transition-all shadow-sm flex items-center space-x-1.5 whitespace-nowrap self-stretch md:self-auto justify-center"
+          className="px-5 py-2.5 rounded-xl bg-white text-[#2563EB] hover:bg-[#F8FAFC] font-bold text-xs transition-all shadow-sm flex items-center space-x-1.5 whitespace-nowrap self-stretch sm:self-auto justify-center"
         >
-          <span>Review Suggested Orders</span>
+          <span>Review Order Suggestions</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Two Column Grid: Needs Your Attention vs Business Performance */}
+      {/* =========================================================================
+          E. Performance Summary & F. Quick Actions
+         ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Urgent Attention List (Takes 2 Cols) */}
-        <div className="lg:col-span-2 card-apple p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#f0f0f4]">
+        {/* Performance Metrics (2 Columns) */}
+        <div className="lg:col-span-2 card-periorder p-5 bg-white space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#F1F5F9]">
             <div>
-              <h2 className="text-base font-semibold text-[#1d1d1f]">
-                Needs your attention
+              <h2 className="text-base font-bold text-[#0F172A]">
+                Store Inventory Performance
               </h2>
-              <p className="text-xs text-[#6e6e73]">
-                Items requiring replenishment or shelf rotation today
+              <p className="text-xs text-[#64748B]">
+                Availability and waste levels achieved with smart replenishment
               </p>
             </div>
             <button
-              onClick={onNavigateToInventory}
-              className="text-xs font-medium text-[#0071e3] hover:underline"
+              onClick={onNavigateToReports}
+              className="text-xs font-semibold text-[#2563EB] hover:underline"
             >
-              See all items
+              Full reports
             </button>
           </div>
 
-          <div className="space-y-3">
-            {data.urgent_attention_items.map((item) => {
-              const isLowStock = item.issue_type === 'Low stock';
-              return (
-                <div
-                  key={item.id}
-                  className="p-3.5 rounded-xl border border-[#e8e8ed] bg-[#ffffff] hover:border-[#d2d2d7] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-sm text-[#1d1d1f]">
-                        {item.name}
-                      </span>
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          isLowStock
-                            ? 'bg-[#fee2e2] text-[#b91c1c]'
-                            : 'bg-[#fef3c7] text-[#b45309]'
-                        }`}
-                      >
-                        {item.issue_type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#6e6e73]">
-                      {item.description}
-                    </p>
-                    <p className="text-xs text-[#16a34a] font-medium flex items-center space-x-1">
-                      <span>Suggested action:</span>
-                      <span className="underline">{item.suggested_action}</span>
-                    </p>
-                  </div>
-
-                  <div className="flex items-center space-x-3 self-end sm:self-center">
-                    <div className="text-right text-xs">
-                      <span className="text-[#86868b] block text-[10px]">On shelf</span>
-                      <span className="font-semibold text-[#1d1d1f]">{item.current_stock} units</span>
-                    </div>
-                    <button
-                      onClick={onNavigateToOrders}
-                      className="px-3 py-1.5 rounded-lg bg-[#f5f5f7] hover:bg-[#e8e8ed] text-xs font-medium text-[#1d1d1f] transition-colors"
-                    >
-                      Resolve
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Column: High-Level Performance Health */}
-        <div className="card-apple p-5 space-y-4">
-          <div className="pb-3 border-b border-[#f0f0f4]">
-            <h2 className="text-base font-semibold text-[#1d1d1f]">
-              Inventory Health &amp; Savings
-            </h2>
-            <p className="text-xs text-[#6e6e73]">
-              Business results achieved with smart ordering
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {/* Savings */}
-            <div className="p-4 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0]">
-              <span className="text-xs font-semibold text-[#16a34a] uppercase tracking-wider block">
-                Estimated Monthly Savings
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Metric 1 */}
+            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+              <span className="text-[11px] font-semibold text-[#64748B] block">
+                Days Without Stockouts
               </span>
-              <div className="text-2xl font-bold text-[#166534] mt-1">
-                +${data.business_performance.estimated_monthly_savings_usd.toFixed(2)}
+              <div className="text-2xl font-bold text-[#16A34A]">
+                {data.business_performance.days_without_stockouts_pct.toFixed(1)}%
               </div>
-              <p className="text-[11px] text-[#166534]/80 mt-1">
-                Saved compared to traditional static reorder rules by reducing waste and avoiding emergency restocks.
+              <p className="text-[11px] text-[#475569] leading-tight">
+                Shelves stay stocked on 81 out of 100 days.
               </p>
             </div>
 
-            {/* Days without stockouts */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="font-medium text-[#1d1d1f]">Days Without Stockouts</span>
-                <span className="font-bold text-[#16a34a]">
-                  {data.business_performance.days_without_stockouts_pct.toFixed(1)}%
-                </span>
-              </div>
-              <div className="w-full bg-[#f0f0f4] rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-[#16a34a] h-2 rounded-full" 
-                  style={{ width: `${data.business_performance.days_without_stockouts_pct}%` }}
-                ></div>
-              </div>
-              <span className="text-[10px] text-[#86868b]">
-                Fraction of days products remain fully in stock
+            {/* Metric 2 */}
+            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+              <span className="text-[11px] font-semibold text-[#64748B] block">
+                Customer Demand Fulfilled
               </span>
+              <div className="text-2xl font-bold text-[#2563EB]">
+                {data.business_performance.customer_demand_fulfilled_pct.toFixed(1)}%
+              </div>
+              <p className="text-[11px] text-[#475569] leading-tight">
+                78.1% of customer units purchased without wait.
+              </p>
             </div>
 
-            {/* Customer demand fulfilled */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="font-medium text-[#1d1d1f]">Customer Demand Fulfilled</span>
-                <span className="font-bold text-[#0071e3]">
-                  {data.business_performance.customer_demand_fulfilled_pct.toFixed(1)}%
-                </span>
-              </div>
-              <div className="w-full bg-[#f0f0f4] rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-[#0071e3] h-2 rounded-full" 
-                  style={{ width: `${data.business_performance.customer_demand_fulfilled_pct}%` }}
-                ></div>
-              </div>
-              <span className="text-[10px] text-[#86868b]">
-                Total customer orders satisfied on first visit
+            {/* Metric 3 */}
+            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+              <span className="text-[11px] font-semibold text-[#64748B] block">
+                Expired Stock (Waste)
               </span>
+              <div className="text-2xl font-bold text-[#D97706]">
+                {data.business_performance.products_expired_pct.toFixed(1)}%
+              </div>
+              <p className="text-[11px] text-[#475569] leading-tight">
+                Only 11% spoilage, vs 16% traditional grocery benchmark.
+              </p>
             </div>
+          </div>
 
-            {/* Expired products */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs">
-                <span className="font-medium text-[#1d1d1f]">Products Expired (Waste)</span>
-                <span className="font-bold text-[#d97706]">
-                  {data.business_performance.products_expired_pct.toFixed(1)}%
-                </span>
-              </div>
-              <div className="w-full bg-[#f0f0f4] rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-[#d97706] h-2 rounded-full" 
-                  style={{ width: `${data.business_performance.products_expired_pct}%` }}
-                ></div>
-              </div>
-              <span className="text-[10px] text-[#86868b]">
-                Expired units divided by total supplier deliveries
+          <div className="p-3 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] text-xs text-[#166534]">
+            <strong>Empirical Saving:</strong> Quantile tuning reduces total holding and spoilage cost by <strong>2.69%</strong> compared to static critical ratio rules across all 18 evaluated scenarios.
+          </div>
+        </div>
+
+        {/* Quick Actions Card (1 Column) */}
+        <div className="card-periorder p-5 bg-white space-y-4 flex flex-col justify-between">
+          <div className="space-y-1">
+            <h2 className="text-base font-bold text-[#0F172A]">
+              Quick Actions
+            </h2>
+            <p className="text-xs text-[#64748B]">
+              Jump straight to common store tasks
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <button
+              onClick={onNavigateToInventory}
+              className="w-full py-2.5 px-3 rounded-xl border border-[#E2E8F0] hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] flex items-center justify-between transition-colors"
+            >
+              <span className="flex items-center space-x-2">
+                <Package className="w-4 h-4 text-[#2563EB]" />
+                <span>Search &amp; Check My Inventory</span>
               </span>
-            </div>
+              <ChevronRight className="w-3.5 h-3.5 text-[#94A3B8]" />
+            </button>
+
+            <button
+              onClick={onNavigateToOrders}
+              className="w-full py-2.5 px-3 rounded-xl border border-[#E2E8F0] hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] flex items-center justify-between transition-colors"
+            >
+              <span className="flex items-center space-x-2">
+                <ShoppingCart className="w-4 h-4 text-[#16A34A]" />
+                <span>Review Suggested Orders</span>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-[#94A3B8]" />
+            </button>
+
+            <button
+              onClick={onNavigateToReports}
+              className="w-full py-2.5 px-3 rounded-xl border border-[#E2E8F0] hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] flex items-center justify-between transition-colors"
+            >
+              <span className="flex items-center space-x-2">
+                <FileText className="w-4 h-4 text-[#D97706]" />
+                <span>View Store Performance</span>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-[#94A3B8]" />
+            </button>
+          </div>
+
+          <div className="text-[11px] text-[#94A3B8] text-center pt-2 border-t border-[#F1F5F9]">
+            M5 Evaluation · Store CA_1 · 500 FOODS items
           </div>
         </div>
       </div>

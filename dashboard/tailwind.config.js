@@ -8,49 +8,46 @@ export default {
     extend: {
       fontFamily: {
         sans: [
+          "Inter",
           "-apple-system",
           "BlinkMacSystemFont",
-          '"SF Pro Display"',
-          '"SF Pro Text"',
           '"Segoe UI"',
           "Roboto",
-          "Helvetica",
-          "Arial",
           "sans-serif",
-        ],
-        mono: [
-          '"SF Mono"',
-          "Menlo",
-          "Monaco",
-          "Consolas",
-          '"Liberation Mono"',
-          "monospace",
         ],
       },
       colors: {
-        apple: {
-          blue: "#0071e3",
-          hover: "#0077ed",
-          darkblue: "#005bb5",
-          gray: {
-            50: "#fbfbfd",
-            100: "#f5f5f7",
-            200: "#e8e8ed",
-            300: "#d2d2d7",
-            400: "#86868b",
-            500: "#6e6e73",
-            600: "#424245",
-            700: "#333336",
-            800: "#1d1d1f",
-            900: "#161617",
-          },
+        brand: {
+          blue: "#2563EB",      // Primary Blue
+          blueHover: "#1D4ED8",
+          blueLight: "#EFF6FF",
+          teal: "#0F766E",      // Trust Teal
+          tealLight: "#F0FDFA",
+        },
+        status: {
+          red: "#DC2626",       // Low stock or urgent
+          redLight: "#FEF2F2",
+          redBorder: "#FECACA",
+          amber: "#D97706",     // Expiring soon or warning
+          amberLight: "#FFFBEB",
+          amberBorder: "#FDE68A",
+          green: "#16A34A",     // Healthy or completed
+          greenLight: "#F0FDF4",
+          greenBorder: "#BBF7D0",
+          slate: "#64748B",     // Neutral or secondary
+          slateLight: "#F8FAFC",
+        },
+        surface: {
+          page: "#F8FAFC",      // Page Background
+          card: "#FFFFFF",      // Card Background
+          border: "#E2E8F0",
+          borderLight: "#F1F5F9",
         },
       },
       boxShadow: {
-        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
-        'apple-card': '0 2px 12px rgba(0, 0, 0, 0.04), 0 0 1px rgba(0, 0, 0, 0.08)',
-        'apple-card-hover': '0 8px 24px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.12)',
-        'apple-dropdown': '0 12px 32px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.15)',
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+        'card-hover': '0 6px 16px -2px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04)',
       },
     },
   },
