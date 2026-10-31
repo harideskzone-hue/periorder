@@ -90,14 +90,22 @@ export const App: React.FC = () => {
     setIsOnboardingOpen(true);
   };
 
-  const handleOnboardingCompleted = (profile: ShopOnboardingProfile) => {
+  const handleOnboardingCompleted = (profile: ShopOnboardingProfile, store?: StoreInfo) => {
     setIsOnboardingOpen(false);
-    // Update active store's display details if matching
-    setActiveStore((prev) => ({
-      ...prev,
-      store_name: profile.shop_name,
-      location: profile.location,
-    }));
+    if (store) {
+      setStores((prev) => {
+        const exists = prev.some((s) => s.store_id === store.store_id);
+        return exists ? prev.map((s) => (s.store_id === store.store_id ? store : s)) : [...prev, store];
+      });
+      setActiveStore(store);
+      localStorage.setItem('periorder_active_store_id', store.store_id);
+    } else {
+      setActiveStore((prev) => ({
+        ...prev,
+        store_name: profile.shop_name,
+        location: profile.location,
+      }));
+    }
     // Switch to Dashboard to see the freshly initialized store
     setCurrentTab('home');
   };

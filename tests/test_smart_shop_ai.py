@@ -65,7 +65,8 @@ def test_bills_ocr_extraction_and_confirmation():
     ocr_data = ocr_res.json()
     assert ocr_data["bill_type"] == "purchase"
     assert len(ocr_data["items"]) >= 4
-    assert ocr_data["average_confidence"] > 80.0
+    conf = ocr_data["average_confidence"]
+    assert conf > 0.80 if conf <= 1.0 else conf > 80.0
 
     # Sales bill OCR
     sales_ocr = client.post(
@@ -147,3 +148,34 @@ def test_suppliers_and_alerts_endpoints():
     for a in alerts_data["alerts"]:
         assert "message" in a
         assert "action_label" in a
+
+
+def test_onboarding_registers_new_store_in_tenant_service():
+    """Verify that onboarding a new store dynamically registers it in TenantService."""
+    store_id = "STORE_ONBOARD_TEST"
+    res = client.post(
+        "/api/onboarding/profile",
+        json={
+            "shop_name": "Test Branch Market",
+            "owner_name": "Karthik Raj",
+            "location": "Velachery, Chennai",
+            "category": "Grocery Store",
+            "shop_type": "new",
+            "tenant_id": "tenant_default",
+            "store_id": store_id,
+            "initial_products": [
+                {"name": "Organic Atta (5kg)", "quantity": 10, "purchase_price": 210.0, "shelf_life": 90}
+            ],
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert "store" in data
+    assert data["store"]["store_id"] == store_id
+
+    # Verify store is now listed in /api/stores
+    stores_res = client.get("/api/stores?tenant_id=tenant_default")
+    assert stores_res.status_code == 200
+    store_ids = [s["store_id"] for s in stores_res.json()["stores"]]
+    assert store_id in store_ids

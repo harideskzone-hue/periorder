@@ -33,7 +33,7 @@ interface ShopOnboardingWizardProps {
   storeName?: string;
   isOpen: boolean;
   onClose: () => void;
-  onCompleted: (profile: ShopOnboardingProfile) => void;
+  onCompleted: (profile: ShopOnboardingProfile, store?: any) => void;
 }
 
 export const ShopOnboardingWizard: React.FC<ShopOnboardingWizardProps> = ({
@@ -220,7 +220,7 @@ export const ShopOnboardingWizard: React.FC<ShopOnboardingWizardProps> = ({
       };
 
       const res = await saveOnboardingProfile(finalProfile, 'tenant_default', storeId);
-      onCompleted(res.profile);
+      onCompleted(res.profile, (res as any).store);
       onClose();
     } catch (err: any) {
       console.error(err);
