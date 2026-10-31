@@ -18,6 +18,24 @@ export type ResearchTab =
 
 export type NavigationTab = StoreManagerTab | ResearchTab;
 
+// --- Multi-Store & Tenant Types ---
+export interface StoreInfo {
+  store_id: string;
+  tenant_id: string;
+  store_name: string;
+  location: string;
+  currency?: string;
+  pos_connected: boolean;
+  pos_provider?: string | null;
+  created_at?: string;
+}
+
+export interface StoresResponse {
+  tenant_id: string;
+  stores: StoreInfo[];
+  total_stores: number;
+}
+
 // --- Store Manager Types ---
 export interface AttentionItem {
   id: string;
@@ -33,6 +51,9 @@ export interface AttentionItem {
 
 export interface StoreManagerOverview {
   greeting: string;
+  store_id?: string;
+  store_name?: string;
+  location?: string;
   monitored_products: number;
   need_attention: number;
   orders_to_review: number;

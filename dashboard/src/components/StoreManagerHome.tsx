@@ -24,19 +24,26 @@ interface StoreManagerHomeProps {
   onNavigateToInventory: () => void;
   onNavigateToReports: () => void;
   onNavigateToPOS?: () => void;
+  storeId?: string;
+  storeName?: string;
+  location?: string;
 }
 
 export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({ 
   onNavigateToOrders, 
   onNavigateToInventory,
   onNavigateToReports,
-  onNavigateToPOS
+  onNavigateToPOS,
+  storeId = 'CA_1',
+  storeName,
+  location
 }) => {
   const [data, setData] = useState<StoreManagerOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStoreManagerOverview()
+    setLoading(true);
+    fetchStoreManagerOverview('tenant_default', storeId)
       .then((res) => {
         setData(res);
         setLoading(false);
@@ -45,7 +52,7 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [storeId]);
 
   if (loading) {
     return (
@@ -57,6 +64,9 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
 
   if (!data) return null;
 
+  const displayStoreName = data.store_name || storeName || `Store ${storeId}`;
+  const displayLocation = data.location || location || 'Active Location';
+
   return (
     <div className="space-y-6">
       {/* =========================================================================
@@ -67,15 +77,16 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
-                Store CA_1
+                {displayStoreName} ({storeId})
               </span>
-              <span className="text-xs text-[#64748B]">Daily Inventory Brief</span>
+              <span className="text-xs text-[#64748B]">{displayLocation}</span>
+              <span className="text-xs text-[#94A3B8]">· Daily Inventory Brief</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] mt-1">
-              Good morning! Here's your inventory overview.
+              {data.greeting || "Good morning! Here's your inventory overview."}
             </h1>
             <p className="text-sm text-[#475569] mt-0.5">
-              4 urgent products need attention today · 8 replenishment suggestions ready for review.
+              {data.need_attention} urgent products need attention today · {data.orders_to_review} replenishment suggestions ready for review.
             </p>
           </div>
 
@@ -89,7 +100,7 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
         <div className="mt-3.5 pt-3 border-t border-[#F1F5F9] flex items-start space-x-2 text-xs text-[#64748B] bg-[#FFFBEB] p-2.5 rounded-lg border border-[#FDE68A]">
           <Info className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
           <p>
-            <strong>Operational Demonstration:</strong> Daily shelf counts and order suggestions are simulated using historical demand from the M5 grocery dataset. Performance metrics (81.1% stockout-free days) reflect verified test results.
+            <strong>Operational Demonstration:</strong> Daily shelf counts and order suggestions are simulated using historical demand from the M5 grocery dataset. Performance metrics reflect verified branch operations.
           </p>
         </div>
       </div>
@@ -106,12 +117,12 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
                 <span className="text-xs font-bold text-[#0F172A]">POS Gateway Stream</span>
                 <span className="inline-flex items-center text-[10px] bg-[#ECFDF5] text-[#059669] px-2 py-0.5 rounded-full font-semibold border border-[#A7F3D0]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse mr-1"></span>
-                  Connected · Live
+                  Active Branch: {storeId}
                 </span>
                 <span className="text-[11px] text-[#64748B] hidden md:inline">Adapter: Generic / Mock Gateway</span>
               </div>
               <p className="text-xs text-[#475569] mt-0.5">
-                Real-time POS webhook listener active for Store CA_1 with idempotent deduplication and FIFO batch depletion.
+                Real-time POS webhook listener active for {displayStoreName} with idempotent deduplication and FIFO batch depletion.
               </p>
             </div>
           </div>

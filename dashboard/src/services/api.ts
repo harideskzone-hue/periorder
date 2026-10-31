@@ -15,45 +15,109 @@ import {
   StoreManagerReportsResponse,
   POSStatusResponse,
   TestWebhookPayload,
+  StoreInfo,
+  StoresResponse,
 } from '../types';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
 
+// --- Multi-Store & Tenant API ---
+
+export async function fetchStores(tenantId = 'tenant_default'): Promise<StoresResponse> {
+  const res = await fetch(`${API_BASE}/stores?tenant_id=${tenantId}`);
+  if (!res.ok) throw new Error('Failed to fetch stores list');
+  return res.json();
+}
+
+export async function fetchStoreDetails(storeId: string, tenantId = 'tenant_default'): Promise<StoreInfo> {
+  const res = await fetch(`${API_BASE}/stores/${storeId}?tenant_id=${tenantId}`);
+  if (!res.ok) throw new Error(`Failed to fetch store details for ${storeId}`);
+  return res.json();
+}
+
+export async function selectStoreAPI(storeId: string, tenantId = 'tenant_default'): Promise<{
+  status: string;
+  store_id: string;
+  store_name: string;
+  location: string;
+  pos_connected: boolean;
+  message: string;
+}> {
+  const res = await fetch(`${API_BASE}/stores/${storeId}/select?tenant_id=${tenantId}`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Failed to select store ${storeId}`);
+  return res.json();
+}
+
+export async function createStoreAPI(
+  storeName: string,
+  location: string,
+  storeId?: string,
+  tenantId = 'tenant_default'
+): Promise<{ status: string; store: StoreInfo; message: string }> {
+  const res = await fetch(`${API_BASE}/stores`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      store_name: storeName,
+      location,
+      store_id: storeId || undefined,
+      tenant_id: tenantId,
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to create store branch');
+  return res.json();
+}
+
 // --- Store Manager API ---
 
-export async function fetchStoreManagerOverview(): Promise<StoreManagerOverview> {
-  const res = await fetch(`${API_BASE}/store-manager/overview`);
+export async function fetchStoreManagerOverview(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<StoreManagerOverview> {
+  const res = await fetch(`${API_BASE}/store-manager/overview?tenant_id=${tenantId}&store_id=${storeId}`);
   if (!res.ok) throw new Error('Failed to fetch store manager overview');
   return res.json();
 }
 
 export async function fetchStoreManagerProducts(
   category?: string,
-  status?: string
+  status?: string,
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
 ): Promise<{ products: StoreProduct[]; total_count: number }> {
-  let url = `${API_BASE}/store-manager/products`;
+  let url = `${API_BASE}/store-manager/products?tenant_id=${tenantId}&store_id=${storeId}`;
   const params = new URLSearchParams();
   if (category && category !== 'All') params.append('category', category);
   if (status && status !== 'All') params.append('status', status);
-  if (params.toString()) url += `?${params.toString()}`;
+  if (params.toString()) url += `&${params.toString()}`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch store products');
   return res.json();
 }
 
-export async function fetchSuggestedOrders(): Promise<{
+export async function fetchSuggestedOrders(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<{
   orders: SuggestedOrder[];
   total_orders: number;
   total_units: number;
   total_estimated_cost: number;
 }> {
-  const res = await fetch(`${API_BASE}/store-manager/suggested-orders`);
+  const res = await fetch(`${API_BASE}/store-manager/suggested-orders?tenant_id=${tenantId}&store_id=${storeId}`);
   if (!res.ok) throw new Error('Failed to fetch suggested orders');
   return res.json();
 }
 
-export async function approveOrders(orderIds: string[], quantities?: Record<string, number>): Promise<{
+export async function approveOrders(
+  orderIds: string[],
+  quantities?: Record<string, number>,
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<{
   status: string;
   approved_count: number;
   message: string;
@@ -63,20 +127,31 @@ export async function approveOrders(orderIds: string[], quantities?: Record<stri
   const res = await fetch(`${API_BASE}/store-manager/orders/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ order_ids: orderIds, quantities: quantities ?? {} }),
+    body: JSON.stringify({
+      order_ids: orderIds,
+      quantities: quantities ?? {},
+      tenant_id: tenantId,
+      store_id: storeId,
+    }),
   });
   if (!res.ok) throw new Error('Failed to approve orders');
   return res.json();
 }
 
-export async function fetchDemandOutlook(): Promise<DemandOutlookResponse> {
-  const res = await fetch(`${API_BASE}/store-manager/demand-outlook`);
+export async function fetchDemandOutlook(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<DemandOutlookResponse> {
+  const res = await fetch(`${API_BASE}/store-manager/demand-outlook?tenant_id=${tenantId}&store_id=${storeId}`);
   if (!res.ok) throw new Error('Failed to fetch demand outlook');
   return res.json();
 }
 
-export async function fetchStoreManagerReports(): Promise<StoreManagerReportsResponse> {
-  const res = await fetch(`${API_BASE}/store-manager/reports`);
+export async function fetchStoreManagerReports(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<StoreManagerReportsResponse> {
+  const res = await fetch(`${API_BASE}/store-manager/reports?tenant_id=${tenantId}&store_id=${storeId}`);
   if (!res.ok) throw new Error('Failed to fetch store reports');
   return res.json();
 }

@@ -17,9 +17,15 @@ import {
 
 interface MyInventoryProps {
   onReorderProduct: (productName: string) => void;
+  storeId?: string;
+  storeName?: string;
 }
 
-export const MyInventory: React.FC<MyInventoryProps> = ({ onReorderProduct }) => {
+export const MyInventory: React.FC<MyInventoryProps> = ({ 
+  onReorderProduct,
+  storeId = 'CA_1',
+  storeName
+}) => {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,7 +39,7 @@ export const MyInventory: React.FC<MyInventoryProps> = ({ onReorderProduct }) =>
     setLoading(true);
     let active = true;
     setError('');
-    fetchStoreManagerProducts(selectedCategory, selectedStatus)
+    fetchStoreManagerProducts(selectedCategory, selectedStatus, 'tenant_default', storeId)
       .then((res) => {
         if (!active) return;
         setProducts(res.products);
@@ -46,7 +52,7 @@ export const MyInventory: React.FC<MyInventoryProps> = ({ onReorderProduct }) =>
         setLoading(false);
       });
     return () => { active = false; };
-  }, [selectedCategory, selectedStatus]);
+  }, [selectedCategory, selectedStatus, storeId]);
 
   const filteredProducts = products
     .filter((p) =>
@@ -60,32 +66,40 @@ export const MyInventory: React.FC<MyInventoryProps> = ({ onReorderProduct }) =>
       return (rank[a.status] ?? 4) - (rank[b.status] ?? 4) || a.days_of_supply - b.days_of_supply;
     });
 
+  const displayTitle = storeName ? `${storeName} (${storeId})` : `Store ${storeId}`;
+
   return (
     <div className="space-y-6">
       {/* Page Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#e8e8ed] gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#1d1d1f]">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
+              {displayTitle}
+            </span>
+            <span className="text-xs text-[#64748B]">Branch Catalog</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#1d1d1f] mt-1">
             My Inventory
           </h1>
           <p className="text-sm text-[#6e6e73] mt-0.5">
-            Monitor current shelf stock, product shelf life, and replenishment needs
+            Monitor current shelf stock, product shelf life, and replenishment needs for {displayTitle}
           </p>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-[#64748B]">
           <Package className="w-4 h-4 text-[#2563EB]" />
-          <span>{filteredProducts.length} products shown</span>
+          <span>{filteredProducts.length} products in branch</span>
         </div>
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900">
-        <strong>Demonstration inventory:</strong> stock quantities, shelf-life values and supplier lead times on this page are illustrative examples, not live store measurements. Use them to explore the workflow only.
+        <strong>Branch inventory:</strong> stock quantities, shelf-life values and supplier lead times on this page reflect {displayTitle}. All records are isolated per store branch.
       </div>
 
       {error && <div role="alert" className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
         <span>{error}</span>
-        <button onClick={() => { setLoading(true); setError(''); fetchStoreManagerProducts(selectedCategory, selectedStatus).then(r => setProducts(r.products)).catch(() => setError('Retry failed. Please check the API server.')).finally(() => setLoading(false)); }} className="inline-flex items-center gap-1 font-semibold"><RefreshCw className="h-4 w-4"/> Retry</button>
+        <button onClick={() => { setLoading(true); setError(''); fetchStoreManagerProducts(selectedCategory, selectedStatus, 'tenant_default', storeId).then(r => setProducts(r.products)).catch(() => setError('Retry failed. Please check the API server.')).finally(() => setLoading(false)); }} className="inline-flex items-center gap-1 font-semibold"><RefreshCw className="h-4 w-4"/> Retry</button>
       </div>}
 
       {/* Filter & Search Bar */}

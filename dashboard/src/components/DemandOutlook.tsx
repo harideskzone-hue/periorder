@@ -24,7 +24,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-export const DemandOutlook: React.FC = () => {
+interface DemandOutlookProps {
+  storeId?: string;
+  storeName?: string;
+}
+
+export const DemandOutlook: React.FC<DemandOutlookProps> = ({
+  storeId = 'CA_1',
+  storeName,
+}) => {
   const [data, setData] = useState<DemandOutlookResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,7 +40,7 @@ export const DemandOutlook: React.FC = () => {
   const loadData = () => {
     setLoading(true);
     setError('');
-    fetchDemandOutlook()
+    fetchDemandOutlook('tenant_default', storeId)
       .then((res) => {
         setData(res);
         setLoading(false);
@@ -46,13 +54,15 @@ export const DemandOutlook: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [storeId]);
+
+  const displayTitle = storeName ? `${storeName} (${storeId})` : `Store ${storeId}`;
 
   if (loading) {
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center space-y-3" role="status">
         <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#2563EB]" />
-        <span className="text-sm font-medium text-slate-600">Loading demand forecast…</span>
+        <span className="text-sm font-medium text-slate-600">Loading demand forecast for {displayTitle}…</span>
       </div>
     );
   }
@@ -86,11 +96,17 @@ export const DemandOutlook: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
+              {displayTitle}
+            </span>
+            <span className="text-xs text-[#64748B]">Weekly Forecast</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
             Demand Outlook
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Expected customer purchasing patterns, peak shopping periods, and fast-moving grocery lines
+            Expected customer purchasing patterns, peak shopping periods, and fast-moving grocery lines for {displayTitle}
           </p>
         </div>
 

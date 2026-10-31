@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { AppMode, NavigationTab } from './types';
+import React, { useState, useEffect } from 'react';
+import { AppMode, NavigationTab, StoreInfo } from './types';
 import { AppShell } from './components/layout/AppShell';
+import { fetchStores } from './services/api';
 
 // Store Manager Views
 import { StoreManagerHome } from './components/StoreManagerHome';
@@ -18,10 +19,53 @@ import { PolicyComparison } from './components/PolicyComparison';
 import { SimulationLab } from './components/SimulationLab';
 import { ResearchResults } from './components/ResearchResults';
 
+const DEFAULT_STORE: StoreInfo = {
+  store_id: 'CA_1',
+  tenant_id: 'tenant_default',
+  store_name: 'Downtown Central (CA_1)',
+  location: 'Los Angeles, CA',
+  pos_connected: true,
+  pos_provider: 'generic_mock',
+};
+
 export const App: React.FC = () => {
   // Store Manager is the default experience
   const [mode, setMode] = useState<AppMode>('store-manager');
   const [currentTab, setCurrentTab] = useState<NavigationTab>('home');
+
+  // Multi-Store State
+  const [stores, setStores] = useState<StoreInfo[]>([DEFAULT_STORE]);
+  const [activeStore, setActiveStore] = useState<StoreInfo>(() => {
+    const savedId = localStorage.getItem('periorder_active_store_id');
+    return savedId ? { ...DEFAULT_STORE, store_id: savedId } : DEFAULT_STORE;
+  });
+
+  useEffect(() => {
+    fetchStores('tenant_default')
+      .then((res) => {
+        if (res.stores && res.stores.length > 0) {
+          setStores(res.stores);
+          const savedId = localStorage.getItem('periorder_active_store_id');
+          const matched = res.stores.find((s) => s.store_id === savedId) || res.stores[0];
+          setActiveStore(matched);
+        }
+      })
+      .catch((err) => console.warn('Could not load stores from API:', err));
+  }, []);
+
+  const handleSelectStore = (store: StoreInfo) => {
+    setActiveStore(store);
+    localStorage.setItem('periorder_active_store_id', store.store_id);
+  };
+
+  const handleStoreCreated = (newStore: StoreInfo) => {
+    setStores((prev) => {
+      const exists = prev.some((s) => s.store_id === newStore.store_id);
+      return exists ? prev : [...prev, newStore];
+    });
+    setActiveStore(newStore);
+    localStorage.setItem('periorder_active_store_id', newStore.store_id);
+  };
 
   const handleModeChange = (newMode: AppMode) => {
     setMode(newMode);
@@ -34,11 +78,18 @@ export const App: React.FC = () => {
       onModeChange={handleModeChange}
       currentTab={currentTab}
       onTabChange={setCurrentTab}
+      currentStore={activeStore}
+      stores={stores}
+      onSelectStore={handleSelectStore}
+      onStoreCreated={handleStoreCreated}
     >
       {mode === 'store-manager' ? (
         <>
           {currentTab === 'home' && (
             <StoreManagerHome
+              storeId={activeStore.store_id}
+              storeName={activeStore.store_name}
+              location={activeStore.location}
               onNavigateToOrders={() => setCurrentTab('orders')}
               onNavigateToInventory={() => setCurrentTab('inventory')}
               onNavigateToReports={() => setCurrentTab('reports')}
@@ -47,13 +98,35 @@ export const App: React.FC = () => {
           )}
           {currentTab === 'inventory' && (
             <MyInventory
+              storeId={activeStore.store_id}
+              storeName={activeStore.store_name}
               onReorderProduct={() => setCurrentTab('orders')}
             />
           )}
-          {currentTab === 'orders' && <WhatShouldIOrder />}
-          {currentTab === 'outlook' && <DemandOutlook />}
-          {currentTab === 'reports' && <StoreReports />}
-          {currentTab === 'pos' && <POSIntegration />}
+          {currentTab === 'orders' && (
+            <WhatShouldIOrder
+              storeId={activeStore.store_id}
+              storeName={activeStore.store_name}
+            />
+          )}
+          {currentTab === 'outlook' && (
+            <DemandOutlook
+              storeId={activeStore.store_id}
+              storeName={activeStore.store_name}
+            />
+          )}
+          {currentTab === 'reports' && (
+            <StoreReports
+              storeId={activeStore.store_id}
+              storeName={activeStore.store_name}
+            />
+          )}
+          {currentTab === 'pos' && (
+            <POSIntegration
+              storeId={activeStore.store_id}
+              storeName={activeStore.store_name}
+            />
+          )}
         </>
       ) : (
         <>

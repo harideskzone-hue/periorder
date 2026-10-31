@@ -33,8 +33,16 @@ class TenantService:
             location="Dallas, TX",
             pos_connected=False,
         )
+        s3 = Store(
+            store_id="WI_3",
+            tenant_id="tenant_default",
+            store_name="Northside Grocery (WI_3)",
+            location="Milwaukee, WI",
+            pos_connected=False,
+        )
         self._stores[s1.store_id] = s1
         self._stores[s2.store_id] = s2
+        self._stores[s3.store_id] = s3
 
         u = User(
             user_id="user_admin",
@@ -66,11 +74,12 @@ class TenantService:
         self._tenants[tenant_id] = t
         return t
 
-    def add_store(self, tenant_id: str, store_name: str, location: str) -> Store:
+    def add_store(self, tenant_id: str, store_name: str, location: str, store_id: str | None = None) -> Store:
         if tenant_id not in self._tenants:
             raise ValueError(f"Tenant {tenant_id} does not exist.")
-        import uuid
-        store_id = f"store_{uuid.uuid4().hex[:8]}"
+        if not store_id:
+            import uuid
+            store_id = f"store_{uuid.uuid4().hex[:8]}"
         s = Store(store_id=store_id, tenant_id=tenant_id, store_name=store_name, location=location)
         self._stores[store_id] = s
         return s

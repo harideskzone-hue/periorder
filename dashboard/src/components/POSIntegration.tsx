@@ -19,7 +19,15 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export const POSIntegration: React.FC = () => {
+interface POSIntegrationProps {
+  storeId?: string;
+  storeName?: string;
+}
+
+export const POSIntegration: React.FC<POSIntegrationProps> = ({
+  storeId = 'CA_1',
+  storeName,
+}) => {
   const [statusData, setStatusData] = useState<POSStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +56,7 @@ export const POSIntegration: React.FC = () => {
     setError('');
 
     try {
-      const res = await fetchPOSStatus('tenant_default', 'CA_1');
+      const res = await fetchPOSStatus('tenant_default', storeId);
       setStatusData(res);
     } catch (err: unknown) {
       console.error(err);
@@ -61,7 +69,7 @@ export const POSIntegration: React.FC = () => {
 
   useEffect(() => {
     loadStatus();
-  }, []);
+  }, [storeId]);
 
   const handleCopyWebhookUrl = () => {
     if (!statusData?.webhook_url) return;
@@ -96,7 +104,7 @@ export const POSIntegration: React.FC = () => {
     const payload: TestWebhookPayload = {
       transaction_id: txId,
       tenant_id: 'tenant_default',
-      store_id: 'CA_1',
+      store_id: storeId,
       items,
       total_amount: Number(totalAmount.toFixed(2)),
     };
@@ -118,11 +126,13 @@ export const POSIntegration: React.FC = () => {
     }
   };
 
+  const displayTitle = storeName ? `${storeName} (${storeId})` : `Store ${storeId}`;
+
   if (loading) {
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center space-y-3" role="status">
         <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#2563EB]" />
-        <span className="text-sm font-medium text-slate-600">Connecting to POS integration gateway…</span>
+        <span className="text-sm font-medium text-slate-600">Connecting to POS integration gateway for {displayTitle}…</span>
       </div>
     );
   }
@@ -138,6 +148,9 @@ export const POSIntegration: React.FC = () => {
       <div className="flex flex-col justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
+              {displayTitle}
+            </span>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               POS Connection &amp; Live Sync
             </h1>
@@ -153,7 +166,7 @@ export const POSIntegration: React.FC = () => {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-600">
-            Real-time sales transaction ingestion, webhook health, and automated inventory ledger synchronization
+            Real-time sales transaction ingestion, webhook health, and automated inventory ledger synchronization for {displayTitle}
           </p>
         </div>
 

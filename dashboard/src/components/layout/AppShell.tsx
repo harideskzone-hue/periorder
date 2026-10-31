@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { AppMode, NavigationTab, StoreManagerTab, ResearchTab } from '../../types';
+import { AppMode, NavigationTab, StoreManagerTab, ResearchTab, StoreInfo } from '../../types';
+import { StoreSwitcher } from './StoreSwitcher';
 import { 
   Store, 
   FlaskConical, 
@@ -27,6 +28,10 @@ interface AppShellProps {
   onModeChange: (mode: AppMode) => void;
   currentTab: NavigationTab;
   onTabChange: (tab: NavigationTab) => void;
+  currentStore: StoreInfo;
+  stores: StoreInfo[];
+  onSelectStore: (store: StoreInfo) => void;
+  onStoreCreated: (store: StoreInfo) => void;
   children: React.ReactNode;
 }
 
@@ -35,6 +40,10 @@ export const AppShell: React.FC<AppShellProps> = ({
   onModeChange,
   currentTab,
   onTabChange,
+  currentStore,
+  stores,
+  onSelectStore,
+  onStoreCreated,
   children,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -90,11 +99,17 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           {/* Store Location Badge */}
           <div className="mt-3.5 p-2 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-between text-xs">
-            <div className="flex items-center space-x-1.5 text-[#334155]">
-              <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span>
-              <span className="font-semibold">M5 Store CA_1</span>
+            <div className="flex items-center space-x-1.5 text-[#334155] min-w-0">
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  currentStore.pos_connected ? 'bg-[#16A34A]' : 'bg-[#94A3B8]'
+                }`}
+              />
+              <span className="font-semibold truncate">{currentStore.store_name}</span>
             </div>
-            <span className="text-[10px] text-[#64748B]">500 products</span>
+            <span className="text-[10px] text-[#64748B] font-mono shrink-0 ml-1">
+              {currentStore.store_id}
+            </span>
           </div>
         </div>
 
@@ -206,40 +221,53 @@ export const AppShell: React.FC<AppShellProps> = ({
       {/* =========================================================================
           Mobile Header & Bottom Navigation
          ========================================================================= */}
-      <header className="md:hidden sticky top-0 z-40 bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="w-7 h-7 rounded-lg bg-[#2563EB] text-white flex items-center justify-center">
+      <header className="md:hidden sticky top-0 z-40 bg-white border-b border-[#E2E8F0] px-4 py-2.5 flex items-center justify-between gap-2">
+        <div className="flex items-center space-x-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-[#2563EB] text-white flex items-center justify-center shrink-0">
             <Store className="w-4 h-4" />
           </div>
-          <span className="font-bold text-sm text-[#0F172A]">PeriOrder</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F1F5F9] text-[#64748B]">
-            {mode === 'store-manager' ? 'Store' : 'Research'}
-          </span>
+          <span className="font-bold text-sm text-[#0F172A] truncate">PeriOrder</span>
         </div>
 
-        <button
-          onClick={() => {
-            const nextMode = mode === 'store-manager' ? 'research' : 'store-manager';
-            onModeChange(nextMode);
-            onTabChange(nextMode === 'store-manager' ? 'home' : 'executive');
-          }}
-          className="px-2.5 py-1 rounded-lg border border-[#E2E8F0] text-xs font-medium text-[#2563EB] bg-[#EFF6FF]"
-        >
-          {mode === 'store-manager' ? 'Go to Research' : 'Go to Store'}
-        </button>
+        <div className="flex items-center space-x-2">
+          <StoreSwitcher
+            currentStore={currentStore}
+            stores={stores}
+            onSelectStore={onSelectStore}
+            onStoreCreated={onStoreCreated}
+          />
+          <button
+            onClick={() => {
+              const nextMode = mode === 'store-manager' ? 'research' : 'store-manager';
+              onModeChange(nextMode);
+              onTabChange(nextMode === 'store-manager' ? 'home' : 'executive');
+            }}
+            className="px-2 py-1 rounded-lg border border-[#E2E8F0] text-[11px] font-medium text-[#2563EB] bg-[#EFF6FF] shrink-0"
+          >
+            {mode === 'store-manager' ? 'Research' : 'Store'}
+          </button>
+        </div>
       </header>
 
       {/* =========================================================================
           Main Content Container
          ========================================================================= */}
       <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
-        {/* Top Data Integrity & Mode Banner */}
-        <div className="bg-[#FFFFFF] border-b border-[#E2E8F0] px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
-          <div className="flex items-center space-x-2 text-[#475569]">
-            <span className="font-semibold text-[#0F172A]">Current View:</span>
-            <span className="px-2 py-0.5 rounded-full font-medium bg-[#F1F5F9] text-[#334155]">
-              {mode === 'store-manager' ? 'Store Manager (Operations)' : 'Research & Analytics (Empirical)'}
-            </span>
+        {/* Top Header Navigation Bar with Store Switcher & Integrity Badges */}
+        <header className="bg-[#FFFFFF] border-b border-[#E2E8F0] px-4 sm:px-6 lg:px-8 py-2.5 hidden md:flex items-center justify-between text-xs gap-3 shadow-2xs">
+          <div className="flex items-center space-x-3">
+            <StoreSwitcher
+              currentStore={currentStore}
+              stores={stores}
+              onSelectStore={onSelectStore}
+              onStoreCreated={onStoreCreated}
+            />
+            <div className="flex items-center space-x-2 text-[#475569] pl-3 border-l border-[#E2E8F0]">
+              <span className="font-semibold text-[#0F172A]">Current View:</span>
+              <span className="px-2 py-0.5 rounded-full font-medium bg-[#F1F5F9] text-[#334155]">
+                {mode === 'store-manager' ? 'Store Manager (Operations)' : 'Research & Analytics (Empirical)'}
+              </span>
+            </div>
           </div>
 
           {/* Honest Data Origin Labeling */}
@@ -256,7 +284,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               </span>
             )}
           </div>
-        </div>
+        </header>
 
         {/* Content Area */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

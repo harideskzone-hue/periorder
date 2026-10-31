@@ -3,7 +3,15 @@ import { SuggestedOrder } from '../types';
 import { fetchSuggestedOrders, approveOrders } from '../services/api';
 import { AlertCircle, CheckCircle2, Info, Minus, Plus, RefreshCw, ShoppingCart } from 'lucide-react';
 
-export const WhatShouldIOrder: React.FC = () => {
+interface WhatShouldIOrderProps {
+  storeId?: string;
+  storeName?: string;
+}
+
+export const WhatShouldIOrder: React.FC<WhatShouldIOrderProps> = ({
+  storeId = 'CA_1',
+  storeName,
+}) => {
   const [orders, setOrders] = useState<SuggestedOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
@@ -16,7 +24,7 @@ export const WhatShouldIOrder: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetchSuggestedOrders();
+      const res = await fetchSuggestedOrders('tenant_default', storeId);
       setOrders(res.orders);
       setQuantities(Object.fromEntries(res.orders.map((order) => [order.id, order.suggested_order_qty])));
       setApprovedIds(new Set());
@@ -29,7 +37,7 @@ export const WhatShouldIOrder: React.FC = () => {
     }
   };
 
-  useEffect(() => { void loadOrders(); }, []);
+  useEffect(() => { void loadOrders(); }, [storeId]);
 
   const totalUnits = useMemo(
     () => orders.reduce((sum, order) => sum + (quantities[order.id] ?? order.suggested_order_qty), 0),
@@ -54,7 +62,7 @@ export const WhatShouldIOrder: React.FC = () => {
     const total = selected.reduce((sum, order) => sum + (quantities[order.id] ?? order.suggested_order_qty) * order.unit_cost, 0);
     const units = selected.reduce((sum, order) => sum + (quantities[order.id] ?? order.suggested_order_qty), 0);
     const confirmed = window.confirm(
-      `Review demo approval\n\n${selected.length} recommendation(s)\n${units} units\nIllustrative value: $${total.toFixed(2)}\n\nThis records an internal demonstration approval only. It will NOT send an order to a supplier. Continue?`
+      `Review demo approval\n\nBranch: ${displayTitle}\n${selected.length} recommendation(s)\n${units} units\nIllustrative value: $${total.toFixed(2)}\n\nThis records an internal demonstration approval only. It will NOT send an order to a supplier. Continue?`
     );
     if (!confirmed) return;
 
@@ -62,7 +70,7 @@ export const WhatShouldIOrder: React.FC = () => {
     setError('');
     try {
       const quantityMap = Object.fromEntries(selected.map((order) => [order.id, quantities[order.id] ?? order.suggested_order_qty]));
-      const result = await approveOrders(selected.map((order) => order.id), quantityMap);
+      const result = await approveOrders(selected.map((order) => order.id), quantityMap, 'tenant_default', storeId);
       setApprovedIds((previous) => new Set([...previous, ...selected.map((order) => order.id)]));
       setConfirmation({ code: result.confirmation_code, count: result.approved_count });
     } catch (err) {
@@ -73,10 +81,12 @@ export const WhatShouldIOrder: React.FC = () => {
     }
   };
 
+  const displayTitle = storeName ? `${storeName} (${storeId})` : `Store ${storeId}`;
+
   if (loading) return (
     <div className="flex min-h-[360px] items-center justify-center" role="status">
       <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#2563EB]" />
-      <span className="ml-3 text-sm text-slate-600">Loading order suggestions…</span>
+      <span className="ml-3 text-sm text-slate-600">Loading order suggestions for {displayTitle}…</span>
     </div>
   );
 
@@ -84,8 +94,14 @@ export const WhatShouldIOrder: React.FC = () => {
     <div className="space-y-6">
       <header className="flex flex-col justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Order Suggestions</h1>
-          <p className="mt-1 text-sm text-slate-600">Review the suggested quantities and the reason behind each recommendation.</p>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
+              {displayTitle}
+            </span>
+            <span className="text-xs text-[#64748B]">Replenishment Queue</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">Order Suggestions</h1>
+          <p className="mt-1 text-sm text-slate-600">Review suggested replenishment quantities and reasoning tailored for {displayTitle}.</p>
         </div>
         <div className="flex items-center gap-5 rounded-xl border border-slate-200 bg-white px-4 py-3">
           <div><p className="text-xs text-slate-500">Total suggested units</p><p className="text-xl font-bold text-slate-900">{totalUnits}</p></div>
