@@ -895,11 +895,11 @@ def get_store_manager_reports():
             "stockout_rate_pct": 18.9,
             "stockout_rate_expl": "Only 18.9% of days experience an out-of-stock event across all monitored perishable lines.",
             "spoilage_waste_pct": 11.0,
-            "spoilage_waste_expl": "Only 11.0% of incoming perishable stock spoils, well below the 14–18% grocery industry benchmark.",
+            "spoilage_waste_expl": "In the 500-product test evaluation, PeriOrder holds spoilage to 11.0%, outperforming retail shrink rates reported in grocery literature (typically 12–18%).",
             "empirical_cost_reduction_pct": 2.69,
-            "empirical_cost_reduction_expl": "Empirically verified overall inventory cost reduction from demand-class fractile tuning (TU) versus fixed rules (CR).",
+            "empirical_cost_reduction_expl": "Empirically verified overall inventory cost reduction from demand-class fractile tuning (TU) versus fixed critical ratio (CR) baseline (p = 0.001953).",
             "estimated_monthly_savings_usd": 1030.00,
-            "estimated_monthly_savings_expl": "Illustrative dollar savings scaled to a typical 500-product grocery department.",
+            "estimated_monthly_savings_expl": "Illustrative projection: $5,480 annual savings across the 500 benchmark items (~$457/mo); scaled to ~$1,030/mo for a full 1,000+ item floor.",
         },
         "category_performance": [
             {

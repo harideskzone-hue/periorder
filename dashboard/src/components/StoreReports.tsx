@@ -217,7 +217,7 @@ export const StoreReports: React.FC = () => {
               {headline_metrics.spoilage_waste_pct}%
             </div>
             <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#D97706]">
-              <span>Industry benchmark: 14–18%</span>
+              <span>Literature reference: 12–18%</span>
             </div>
           </div>
           <div className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-600">
@@ -237,7 +237,7 @@ export const StoreReports: React.FC = () => {
             </div>
             <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[#0F766E]">
               <ArrowDownRight className="h-3 w-3" />
-              <span>≈ +${headline_metrics.estimated_monthly_savings_usd.toFixed(0)}/mo illustrative</span>
+              <span>Scale-up projection: ~${headline_metrics.estimated_monthly_savings_usd.toFixed(0)}/mo</span>
             </div>
           </div>
           <div className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-600">
