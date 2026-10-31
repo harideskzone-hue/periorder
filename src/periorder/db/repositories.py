@@ -279,6 +279,28 @@ class POSTransactionRepository:
         self.session.flush()
         return tx
 
+    def get_recent_transactions(
+        self, tenant_id: str, store_id: str, limit: int = 50
+    ) -> list[POSTransactionModel]:
+        stmt = (
+            select(POSTransactionModel)
+            .where(
+                POSTransactionModel.tenant_id == tenant_id,
+                POSTransactionModel.store_id == store_id,
+            )
+            .order_by(POSTransactionModel.created_at.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt).all())
+
+    def get_transaction_count(self, tenant_id: str, store_id: str) -> int:
+        stmt = select(func.count(POSTransactionModel.id)).where(
+            POSTransactionModel.tenant_id == tenant_id,
+            POSTransactionModel.store_id == store_id,
+        )
+        return int(self.session.scalar(stmt) or 0)
+
+
 
 class BillDocumentRepository:
     def __init__(self, session: Session) -> None:

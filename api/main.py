@@ -14,7 +14,9 @@ from pydantic import BaseModel, Field
 
 from periorder.auth import auth_router
 from periorder.config import calibrate_costs
+from periorder.db import get_session_factory
 from periorder.integrations.market import get_market_provider
+
 from periorder.integrations.ocr import get_ocr_provider
 from periorder.integrations.registry import get_connector, list_available_providers
 from periorder.inventory.batches import BatchTracker
@@ -47,7 +49,12 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 tenant_service = TenantService()
 inventory_ledger = InventoryLedger()
 batch_tracker = BatchTracker()
-sales_pipeline = SalesIngestionPipeline(ledger=inventory_ledger, batch_tracker=batch_tracker)
+sales_pipeline = SalesIngestionPipeline(
+    ledger=inventory_ledger,
+    batch_tracker=batch_tracker,
+    session_factory=get_session_factory(),
+)
+
 
 
 def _seed_initial_store_inventory() -> None:
