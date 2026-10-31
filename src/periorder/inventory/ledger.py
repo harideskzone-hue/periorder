@@ -20,6 +20,7 @@ class MovementType(str, Enum):
     WASTE_EXPIRED = "waste_expired"
     DAMAGE = "damage"
     STOCK_CORRECTION = "stock_correction"
+    OPENING_STOCK = "opening_stock"
 
 
 @dataclass

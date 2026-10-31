@@ -178,13 +178,16 @@ class BatchRepository:
         shelf_life_days: int,
         unit_cost: float = 0.0,
         received_date: datetime.datetime | None = None,
+        batch_id: str | None = None,
     ) -> InventoryBatchModel:
-        batch_id = f"BAT_{uuid.uuid4().hex[:8].upper()}"
+        b_id = batch_id or f"BAT_{uuid.uuid4().hex[:8].upper()}"
         recv_dt = received_date or datetime.datetime.now(datetime.UTC)
+        if recv_dt.tzinfo is None:
+            recv_dt = recv_dt.replace(tzinfo=datetime.UTC)
         exp_dt = recv_dt + datetime.timedelta(days=shelf_life_days)
 
         batch = InventoryBatchModel(
-            batch_id=batch_id,
+            batch_id=b_id,
             tenant_id=tenant_id,
             store_id=store_id,
             product_id=product_id,
@@ -203,7 +206,7 @@ class BatchRepository:
     def get_active_batches_fifo(
         self, tenant_id: str, store_id: str, product_id: str, for_update: bool = False
     ) -> list[InventoryBatchModel]:
-        """Fetch unexhausted batches ordered by received_date ascending (FIFO)."""
+        """Fetch unexhausted batches ordered by expiry date and received date ascending (FIFO/FEFO)."""
         stmt = (
             select(InventoryBatchModel)
             .where(
@@ -213,7 +216,10 @@ class BatchRepository:
                 InventoryBatchModel.is_exhausted == False,
                 InventoryBatchModel.remaining_quantity > 0,
             )
-            .order_by(InventoryBatchModel.received_date.asc())
+            .order_by(
+                InventoryBatchModel.expiry_date.asc(),
+                InventoryBatchModel.received_date.asc(),
+            )
         )
         if for_update:
             stmt = stmt.with_for_update()
@@ -228,8 +234,31 @@ class BatchRepository:
         for_update: bool = False,
     ) -> int:
         """Deducts units across active FIFO batches. Returns actual quantity deducted."""
+        if quantity_to_deduct <= 0:
+            return 0
+        records = self.deduct_fifo_records(
+            tenant_id=tenant_id,
+            store_id=store_id,
+            product_id=product_id,
+            quantity_to_deduct=quantity_to_deduct,
+            for_update=for_update,
+        )
+        return sum(deducted_qty for _, deducted_qty in records)
+
+    def deduct_fifo_records(
+        self,
+        tenant_id: str,
+        store_id: str,
+        product_id: str,
+        quantity_to_deduct: int,
+        for_update: bool = False,
+    ) -> list[tuple[InventoryBatchModel, int]]:
+        """Deducts units across active FIFO batches. Returns list of (batch_model, quantity_deducted)."""
+        if quantity_to_deduct <= 0:
+            return []
         remaining = quantity_to_deduct
         batches = self.get_active_batches_fifo(tenant_id, store_id, product_id, for_update=for_update)
+        deductions: list[tuple[InventoryBatchModel, int]] = []
 
         for b in batches:
             if remaining <= 0:
@@ -240,9 +269,74 @@ class BatchRepository:
             if b.remaining_quantity == 0:
                 b.is_exhausted = True
             remaining -= deduct
+            deductions.append((b, deduct))
 
         self.session.flush()
-        return quantity_to_deduct - remaining
+        return deductions
+
+    def get_active_batches(
+        self,
+        tenant_id: str,
+        store_id: str,
+        product_id: str | None = None,
+        for_update: bool = False,
+    ) -> list[InventoryBatchModel]:
+        """Fetch active unexhausted batches for a tenant and store, optionally filtered by product."""
+        stmt = select(InventoryBatchModel).where(
+            InventoryBatchModel.tenant_id == tenant_id,
+            InventoryBatchModel.store_id == store_id,
+            InventoryBatchModel.is_exhausted == False,
+            InventoryBatchModel.remaining_quantity > 0,
+        )
+        if product_id is not None:
+            stmt = stmt.where(InventoryBatchModel.product_id == product_id)
+        stmt = stmt.order_by(
+            InventoryBatchModel.expiry_date.asc(),
+            InventoryBatchModel.received_date.asc(),
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        return list(self.session.scalars(stmt).all())
+
+    def get_expiring_soon(
+        self,
+        tenant_id: str,
+        store_id: str,
+        within_days: int = 2,
+    ) -> list[InventoryBatchModel]:
+        """Identify active batches expiring between now and `within_days` days from now."""
+        now = datetime.datetime.now(datetime.UTC)
+        cutoff = now + datetime.timedelta(days=within_days)
+        stmt = (
+            select(InventoryBatchModel)
+            .where(
+                InventoryBatchModel.tenant_id == tenant_id,
+                InventoryBatchModel.store_id == store_id,
+                InventoryBatchModel.is_exhausted == False,
+                InventoryBatchModel.remaining_quantity > 0,
+                InventoryBatchModel.expiry_date <= cutoff,
+            )
+            .order_by(InventoryBatchModel.expiry_date.asc())
+        )
+        return list(self.session.scalars(stmt).all())
+
+    def get_batch_by_id(
+        self, tenant_id: str, store_id: str, batch_id: str
+    ) -> InventoryBatchModel | None:
+        """Fetch a specific batch scoped by tenant and store."""
+        stmt = select(InventoryBatchModel).where(
+            InventoryBatchModel.tenant_id == tenant_id,
+            InventoryBatchModel.store_id == store_id,
+            InventoryBatchModel.batch_id == batch_id,
+        )
+        return self.session.scalars(stmt).first()
+
+    def get_batch_inventory_valuation(
+        self, tenant_id: str, store_id: str, product_id: str | None = None
+    ) -> float:
+        """Calculates total remaining monetary value across unexhausted batches."""
+        batches = self.get_active_batches(tenant_id, store_id, product_id)
+        return sum(float(b.remaining_quantity * b.unit_cost) for b in batches)
 
 
 

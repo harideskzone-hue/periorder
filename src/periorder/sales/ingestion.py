@@ -224,24 +224,26 @@ class SalesIngestionPipeline:
                             notes=f"POS Sale: {item.quantity} units @ ${item.unit_price:.2f}",
                         )
 
-                    # FIFO batch deduction (in-memory if configured)
+                    # FIFO batch deduction (DB-backed or in-memory)
                     if self.batch_tracker is not None:
                         deductions = self.batch_tracker.deduct_fifo(
                             tenant_id=tenant_id,
                             store_id=store_id,
                             product_id=item.product_id,
                             quantity_to_deduct=item.quantity,
+                            uow=uow,
+                            for_update=True,
                         )
                         all_deductions.extend(deductions)
-
-                    # Persistent FIFO batch deduction with row-level locking
-                    uow.batches.deduct_fifo(
-                        tenant_id=tenant_id,
-                        store_id=store_id,
-                        product_id=item.product_id,
-                        quantity_to_deduct=item.quantity,
-                        for_update=True,
-                    )
+                    else:
+                        # Persistent FIFO batch deduction with row-level locking
+                        uow.batches.deduct_fifo(
+                            tenant_id=tenant_id,
+                            store_id=store_id,
+                            product_id=item.product_id,
+                            quantity_to_deduct=item.quantity,
+                            for_update=True,
+                        )
 
                     # Read stock
                     if self.ledger is not None:

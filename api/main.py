@@ -47,7 +47,7 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 # --- Multi-Tenant, Multi-Store & POS Ingestion Services ---
 tenant_service = TenantService()
 inventory_ledger = InventoryLedger(session_factory=get_session_factory())
-batch_tracker = BatchTracker()
+batch_tracker = BatchTracker(session_factory=get_session_factory())
 sales_pipeline = SalesIngestionPipeline(
     ledger=inventory_ledger,
     batch_tracker=batch_tracker,
