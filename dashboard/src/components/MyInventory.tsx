@@ -12,17 +12,20 @@ import {
   ShoppingCart,
   ChevronRight,
   X,
-  RefreshCw
+  RefreshCw,
+  TrendingUp
 } from 'lucide-react';
 
 interface MyInventoryProps {
   onReorderProduct: (productName: string) => void;
+  onSelectProductForDeepDive?: (productId: string) => void;
   storeId?: string;
   storeName?: string;
 }
 
 export const MyInventory: React.FC<MyInventoryProps> = ({ 
   onReorderProduct,
+  onSelectProductForDeepDive,
   storeId = 'CA_1',
   storeName
 }) => {
@@ -293,9 +296,23 @@ export const MyInventory: React.FC<MyInventoryProps> = ({
               <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Illustrative shelf-life left</p><p className="mt-1 text-xl font-bold">{selectedProduct.days_remaining} days</p></div>
             </div>
             <p className="mt-4 text-sm text-slate-600">Status: <strong>{selectedProduct.status}</strong>. Supplier delivery estimate: <strong>{selectedProduct.supplier_lead_time}</strong>.</p>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button onClick={() => setSelectedProduct(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold">Close</button>
-              {selectedProduct.action === 'Reorder' && <button onClick={() => { onReorderProduct(selectedProduct.name); setSelectedProduct(null); }} className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white">Review order suggestion</button>}
+            <div className="mt-5 flex flex-wrap justify-between items-center gap-2">
+              {onSelectProductForDeepDive && (
+                <button
+                  onClick={() => {
+                    onSelectProductForDeepDive(selectedProduct.id);
+                    setSelectedProduct(null);
+                  }}
+                  className="rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3.5 py-2 text-xs font-bold flex items-center space-x-1.5 transition-colors"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Deep Dive Analytics &amp; Forecast</span>
+                </button>
+              )}
+              <div className="flex items-center space-x-2">
+                <button onClick={() => setSelectedProduct(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold">Close</button>
+                {selectedProduct.action === 'Reorder' && <button onClick={() => { onReorderProduct(selectedProduct.name); setSelectedProduct(null); }} className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white">Review order suggestion</button>}
+              </div>
             </div>
           </section>
         </div>

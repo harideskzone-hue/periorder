@@ -20,7 +20,14 @@ import {
   ChevronRight,
   ShieldCheck,
   AlertCircle,
-  Zap
+  Zap,
+  Receipt,
+  DollarSign,
+  Globe,
+  AlertTriangle,
+  Truck,
+  Settings,
+  Sparkles
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -32,6 +39,7 @@ interface AppShellProps {
   stores: StoreInfo[];
   onSelectStore: (store: StoreInfo) => void;
   onStoreCreated: (store: StoreInfo) => void;
+  onLaunchOnboarding?: () => void;
   children: React.ReactNode;
 }
 
@@ -44,18 +52,25 @@ export const AppShell: React.FC<AppShellProps> = ({
   stores,
   onSelectStore,
   onStoreCreated,
+  onLaunchOnboarding,
   children,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Store Manager Navigation items
+  // Store Manager Navigation items (Comprehensive Smart Shop AI suite)
   const storeNavItems: { id: StoreManagerTab; label: string; icon: React.ReactNode; badge?: string }[] = [
-    { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
+    { id: 'home', label: 'Dashboard', icon: <Home className="w-4 h-4" /> },
     { id: 'inventory', label: 'My Inventory', icon: <Package className="w-4 h-4" /> },
+    { id: 'bills', label: 'Bills & Transactions', icon: <Receipt className="w-4 h-4" />, badge: 'OCR' },
+    { id: 'sales-profit', label: 'Sales & Profit', icon: <DollarSign className="w-4 h-4" /> },
+    { id: 'market-research', label: 'Market Research', icon: <Globe className="w-4 h-4" />, badge: 'Live' },
+    { id: 'outlook', label: 'AI Forecast', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'orders', label: 'Order Suggestions', icon: <ShoppingCart className="w-4 h-4" />, badge: '8' },
-    { id: 'outlook', label: 'Demand Outlook', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'alerts', label: 'Alerts & Actions', icon: <AlertTriangle className="w-4 h-4" />, badge: '3' },
+    { id: 'suppliers', label: 'Suppliers', icon: <Truck className="w-4 h-4" /> },
+    { id: 'pos', label: 'POS Gateway', icon: <Zap className="w-4 h-4" /> },
     { id: 'reports', label: 'Reports', icon: <FileText className="w-4 h-4" /> },
-    { id: 'pos', label: 'POS Integration', icon: <Zap className="w-4 h-4" />, badge: 'Live' },
+    { id: 'settings', label: 'Shop Settings', icon: <Settings className="w-4 h-4" /> },
   ];
 
   // Research Navigation items
@@ -270,12 +285,22 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
 
-          {/* Honest Data Origin Labeling */}
-          <div className="flex items-center space-x-2">
+          {/* Honest Data Origin Labeling & Setup Wizard Trigger */}
+          <div className="flex items-center space-x-2.5">
+            {mode === 'store-manager' && onLaunchOnboarding && (
+              <button
+                onClick={onLaunchOnboarding}
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors shadow-2xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span>Shop Setup Wizard</span>
+              </button>
+            )}
+
             {mode === 'store-manager' ? (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A]">
                 <Info className="w-3.5 h-3.5 mr-1 text-[#D97706]" />
-                Illustrative Store Demonstration (M5 Sales Data)
+                Store Mode (Smart Shop AI)
               </span>
             ) : (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]">

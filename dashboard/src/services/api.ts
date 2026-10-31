@@ -17,6 +17,13 @@ import {
   TestWebhookPayload,
   StoreInfo,
   StoresResponse,
+  ShopOnboardingProfile,
+  OCRBillResult,
+  MarketResearchResponse,
+  ProductAnalyticsData,
+  SalesProfitSummary,
+  SupplierInfo,
+  AlertsResponse,
 } from '../types';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
@@ -199,6 +206,129 @@ export async function connectPOSProvider(
     }),
   });
   if (!res.ok) throw new Error('Failed to connect POS provider');
+  return res.json();
+}
+
+// --- Smart Shop AI API ---
+
+export async function fetchOnboardingProfile(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<ShopOnboardingProfile> {
+  const res = await fetch(`${API_BASE}/onboarding/profile?tenant_id=${tenantId}&store_id=${storeId}`);
+  if (!res.ok) throw new Error('Failed to fetch shop profile');
+  return res.json();
+}
+
+export async function saveOnboardingProfile(
+  profile: ShopOnboardingProfile,
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<{ status: string; message: string; profile: ShopOnboardingProfile; seeded_products_count?: number }> {
+  const res = await fetch(`${API_BASE}/onboarding/profile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: tenantId,
+      store_id: storeId,
+      ...profile,
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to save shop profile');
+  return res.json();
+}
+
+export async function processBillOCR(
+  file: File,
+  billType: 'purchase' | 'sales' = 'purchase',
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<OCRBillResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('bill_type', billType);
+  formData.append('tenant_id', tenantId);
+  formData.append('store_id', storeId);
+
+  const res = await fetch(`${API_BASE}/bills/ocr`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Bill processing failed' }));
+    throw new Error(err.detail || 'Bill processing failed');
+  }
+  return res.json();
+}
+
+export async function confirmBillIngestion(
+  billData: {
+    document_id: string;
+    bill_type: string;
+    party_name: string;
+    invoice_number: string;
+    date: string;
+    items: Array<{ product_name: string; quantity: number; unit_price: number; total?: number }>;
+  },
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<{ status: string; message: string; items_processed: number; document_id: string }> {
+  const res = await fetch(`${API_BASE}/bills/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: tenantId,
+      store_id: storeId,
+      ...billData,
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to confirm and commit bill');
+  return res.json();
+}
+
+export async function fetchMarketResearch(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<MarketResearchResponse> {
+  const res = await fetch(`${API_BASE}/market-research?tenant_id=${tenantId}&store_id=${storeId}`);
+  if (!res.ok) throw new Error('Failed to fetch market research data');
+  return res.json();
+}
+
+export async function fetchProductAnalytics(
+  productId: string,
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<ProductAnalyticsData> {
+  const res = await fetch(`${API_BASE}/products/${encodeURIComponent(productId)}/analytics?tenant_id=${tenantId}&store_id=${storeId}`);
+  if (!res.ok) throw new Error(`Failed to fetch analytics for product ${productId}`);
+  return res.json();
+}
+
+export async function fetchSalesProfitSummary(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<SalesProfitSummary> {
+  const res = await fetch(`${API_BASE}/analytics/sales-profit?tenant_id=${tenantId}&store_id=${storeId}`);
+  if (!res.ok) throw new Error('Failed to fetch sales and profit analytics');
+  return res.json();
+}
+
+export async function fetchSuppliers(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<{ suppliers: SupplierInfo[]; total_suppliers: number }> {
+  const res = await fetch(`${API_BASE}/suppliers?tenant_id=${tenantId}&store_id=${storeId}`);
+  if (!res.ok) throw new Error('Failed to fetch suppliers');
+  return res.json();
+}
+
+export async function fetchShopAlerts(
+  tenantId = 'tenant_default',
+  storeId = 'CA_1'
+): Promise<AlertsResponse> {
+  const res = await fetch(`${API_BASE}/alerts?tenant_id=${tenantId}&store_id=${storeId}`);
+  if (!res.ok) throw new Error('Failed to fetch shop alerts');
   return res.json();
 }
 

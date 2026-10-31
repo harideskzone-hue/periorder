@@ -3,8 +3,14 @@ export type AppMode = 'store-manager' | 'research';
 export type StoreManagerTab = 
   | 'home' 
   | 'inventory' 
+  | 'bills'
+  | 'sales-profit'
+  | 'market-research'
   | 'orders' 
   | 'outlook' 
+  | 'alerts'
+  | 'suppliers'
+  | 'settings'
   | 'reports'
   | 'pos';
 
@@ -435,3 +441,158 @@ export interface SimulationResponse {
   summary: SimulationSummary;
   daily_sample: SimulationDailySample[];
 }
+
+// --- Smart Shop AI Types ---
+
+export type ShopCategory = 
+  | 'Grocery Store' 
+  | 'Fruit & Vegetable Shop' 
+  | 'Medical Shop' 
+  | 'Clothing Store' 
+  | 'Other';
+
+export type ShopType = 'new' | 'existing';
+
+export interface ShopOnboardingProfile {
+  shop_name: string;
+  owner_name: string;
+  location: string;
+  contact_phone?: string;
+  contact_email?: string;
+  category: ShopCategory | string;
+  shop_type: ShopType;
+  opening_date?: string;
+  status: 'completed' | 'uncompleted';
+  tenant_id?: string;
+  store_id?: string;
+  initial_products?: Array<{
+    name: string;
+    category?: string;
+    quantity: number;
+    purchase_price: number;
+    selling_price?: number;
+    shelf_life?: number;
+    supplier?: string;
+  }>;
+  uploaded_bill_count?: number;
+}
+
+export interface OCRExtractedItem {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  suggested_selling_price?: number;
+  total: number;
+  confidence: number;
+  status: 'verified' | 'review_suggested';
+}
+
+export interface OCRBillResult {
+  document_id: string;
+  filename: string;
+  bill_type: 'purchase' | 'sales';
+  party_name: string;
+  invoice_number: string;
+  date: string;
+  total_amount: number;
+  ocr_engine: string;
+  average_confidence: number;
+  items: OCRExtractedItem[];
+  status: 'ready_for_confirmation';
+}
+
+export interface MarketProductResearch {
+  product_id: string;
+  name: string;
+  category: string;
+  wholesale_mandi_price: number;
+  your_purchase_cost: number;
+  retail_benchmark_price: number;
+  your_selling_price: number;
+  gross_margin_pct: number;
+  demand_index: number;
+  demand_trajectory: string;
+  seasonality: string;
+  market_risk: string;
+  source: string;
+  price_history_30d: number[];
+}
+
+export interface MarketResearchResponse {
+  total_products_monitored: number;
+  research_date: string;
+  market_coverage: string;
+  products: MarketProductResearch[];
+}
+
+export interface ProductAnalyticsData {
+  product_id: string;
+  product_name: string;
+  category: string;
+  current_stock: number;
+  shelf_life_days: number;
+  days_of_supply: number;
+  purchase_price: number;
+  selling_price: number;
+  margin_amount: number;
+  margin_pct: number;
+  total_units_sold_30d: number;
+  total_revenue_30d: number;
+  total_gross_profit_30d: number;
+  daily_sales_history: Array<{ date: string; units_sold: number; revenue: number }>;
+  purchase_cost_history: Array<{ month: string; cost: number }>;
+  demand_forecast_7d: Array<{ day: string; forecast_units: number; lower_bound: number; upper_bound: number }>;
+  recommended_reorder_qty: number;
+  lead_time_days: number;
+  stockout_risk_days: number;
+  ai_explanation: string;
+}
+
+export interface SalesProfitSummary {
+  store_id: string;
+  total_revenue_month: number;
+  total_cost_month: number;
+  gross_profit_month: number;
+  gross_margin_pct: number;
+  today_revenue: number;
+  today_profit: number;
+  monthly_trend: Array<{ month: string; revenue: number; cost: number; profit: number }>;
+  category_profitability: Array<{ category: string; revenue: number; cost: number; profit: number; margin_pct: number }>;
+  top_profitable_products: Array<{ name: string; units_sold: number; profit: number; margin_pct: number }>;
+}
+
+export interface SupplierInfo {
+  id: string;
+  name: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  location: string;
+  lead_time_days: number;
+  reliability_score_pct: number;
+  categories: string[];
+  active_orders: number;
+}
+
+export interface ShopAlert {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  type: 'low_stock' | 'overstock' | 'expiry_risk' | 'demand_surge' | 'price_drop';
+  product_name: string;
+  category: string;
+  current_stock: number;
+  days_remaining: number;
+  reorder_quantity: number;
+  title: string;
+  message: string;
+  action_label: string;
+}
+
+export interface AlertsResponse {
+  total_active_alerts: number;
+  critical_count: number;
+  warning_count: number;
+  info_count: number;
+  alerts: ShopAlert[];
+}
+

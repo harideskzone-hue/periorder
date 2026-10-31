@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { AppMode, NavigationTab, StoreInfo } from './types';
+import { AppMode, NavigationTab, StoreInfo, ShopOnboardingProfile } from './types';
 import { AppShell } from './components/layout/AppShell';
 import { fetchStores } from './services/api';
 
-// Store Manager Views
+// Core Store Manager Views
 import { StoreManagerHome } from './components/StoreManagerHome';
 import { MyInventory } from './components/MyInventory';
 import { WhatShouldIOrder } from './components/WhatShouldIOrder';
 import { DemandOutlook } from './components/DemandOutlook';
 import { StoreReports } from './components/StoreReports';
 import { POSIntegration } from './components/POSIntegration';
+
+// Smart Shop AI Views
+import { BillUploadCenter } from './components/BillUploadCenter';
+import { SalesProfitView } from './components/SalesProfitView';
+import { MarketResearchView } from './components/MarketResearchView';
+import { AlertsCenterView } from './components/AlertsCenterView';
+import { SuppliersView } from './components/SuppliersView';
+import { ShopSettingsView } from './components/ShopSettingsView';
+import { ShopOnboardingWizard } from './components/ShopOnboardingWizard';
+import { ProductAnalyticsModal } from './components/ProductAnalyticsModal';
 
 // Research & Analytics Views
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
@@ -39,6 +49,10 @@ export const App: React.FC = () => {
     const savedId = localStorage.getItem('periorder_active_store_id');
     return savedId ? { ...DEFAULT_STORE, store_id: savedId } : DEFAULT_STORE;
   });
+
+  // Smart Shop AI Modals State
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [selectedProductIdForAnalytics, setSelectedProductIdForAnalytics] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStores('tenant_default')
@@ -72,73 +86,173 @@ export const App: React.FC = () => {
     setCurrentTab(newMode === 'store-manager' ? 'home' : 'executive');
   };
 
+  const handleLaunchOnboarding = () => {
+    setIsOnboardingOpen(true);
+  };
+
+  const handleOnboardingCompleted = (profile: ShopOnboardingProfile) => {
+    setIsOnboardingOpen(false);
+    // Update active store's display details if matching
+    setActiveStore((prev) => ({
+      ...prev,
+      store_name: profile.shop_name,
+      location: profile.location,
+    }));
+    // Switch to Dashboard to see the freshly initialized store
+    setCurrentTab('home');
+  };
+
+  const handleOpenProductAnalytics = (productId: string) => {
+    setSelectedProductIdForAnalytics(productId);
+  };
+
+  const handleCloseProductAnalytics = () => {
+    setSelectedProductIdForAnalytics(null);
+  };
+
   return (
-    <AppShell
-      mode={mode}
-      onModeChange={handleModeChange}
-      currentTab={currentTab}
-      onTabChange={setCurrentTab}
-      currentStore={activeStore}
-      stores={stores}
-      onSelectStore={handleSelectStore}
-      onStoreCreated={handleStoreCreated}
-    >
-      {mode === 'store-manager' ? (
-        <>
-          {currentTab === 'home' && (
-            <StoreManagerHome
-              storeId={activeStore.store_id}
-              storeName={activeStore.store_name}
-              location={activeStore.location}
-              onNavigateToOrders={() => setCurrentTab('orders')}
-              onNavigateToInventory={() => setCurrentTab('inventory')}
-              onNavigateToReports={() => setCurrentTab('reports')}
-              onNavigateToPOS={() => setCurrentTab('pos')}
-            />
-          )}
-          {currentTab === 'inventory' && (
-            <MyInventory
-              storeId={activeStore.store_id}
-              storeName={activeStore.store_name}
-              onReorderProduct={() => setCurrentTab('orders')}
-            />
-          )}
-          {currentTab === 'orders' && (
-            <WhatShouldIOrder
-              storeId={activeStore.store_id}
-              storeName={activeStore.store_name}
-            />
-          )}
-          {currentTab === 'outlook' && (
-            <DemandOutlook
-              storeId={activeStore.store_id}
-              storeName={activeStore.store_name}
-            />
-          )}
-          {currentTab === 'reports' && (
-            <StoreReports
-              storeId={activeStore.store_id}
-              storeName={activeStore.store_name}
-            />
-          )}
-          {currentTab === 'pos' && (
-            <POSIntegration
-              storeId={activeStore.store_id}
-              storeName={activeStore.store_name}
-            />
-          )}
-        </>
-      ) : (
-        <>
-          {currentTab === 'executive' && <ExecutiveDashboard />}
-          {currentTab === 'forecasting' && <DemandForecasting />}
-          {currentTab === 'monitoring' && <InventoryMonitoring />}
-          {currentTab === 'policy' && <PolicyComparison />}
-          {currentTab === 'simulation' && <SimulationLab />}
-          {currentTab === 'research' && <ResearchResults />}
-        </>
+    <>
+      <AppShell
+        mode={mode}
+        onModeChange={handleModeChange}
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
+        currentStore={activeStore}
+        stores={stores}
+        onSelectStore={handleSelectStore}
+        onStoreCreated={handleStoreCreated}
+        onLaunchOnboarding={handleLaunchOnboarding}
+      >
+        {mode === 'store-manager' ? (
+          <>
+            {currentTab === 'home' && (
+              <StoreManagerHome
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+                location={activeStore.location}
+                onNavigateToOrders={() => setCurrentTab('orders')}
+                onNavigateToInventory={() => setCurrentTab('inventory')}
+                onNavigateToReports={() => setCurrentTab('reports')}
+                onNavigateToPOS={() => setCurrentTab('pos')}
+              />
+            )}
+            {currentTab === 'inventory' && (
+              <MyInventory
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+                onReorderProduct={() => setCurrentTab('orders')}
+                onSelectProductForDeepDive={handleOpenProductAnalytics}
+              />
+            )}
+            {currentTab === 'bills' && (
+              <BillUploadCenter
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+                onInventoryUpdated={() => {
+                  // After bill committed, user can view inventory
+                }}
+              />
+            )}
+            {currentTab === 'sales-profit' && (
+              <SalesProfitView
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+                onSelectProduct={(name) => handleOpenProductAnalytics('FOODS_3_090_CA_1')}
+              />
+            )}
+            {currentTab === 'market-research' && (
+              <MarketResearchView
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+                onSelectProductForDeepDive={handleOpenProductAnalytics}
+              />
+            )}
+            {currentTab === 'orders' && (
+              <WhatShouldIOrder
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+              />
+            )}
+            {currentTab === 'outlook' && (
+              <DemandOutlook
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+              />
+            )}
+            {currentTab === 'alerts' && (
+              <AlertsCenterView
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+                onNavigateToOrders={() => setCurrentTab('orders')}
+                onOpenProductAnalytics={handleOpenProductAnalytics}
+              />
+            )}
+            {currentTab === 'suppliers' && (
+              <SuppliersView
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+                onPlaceOrder={() => setCurrentTab('orders')}
+              />
+            )}
+            {currentTab === 'pos' && (
+              <POSIntegration
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+              />
+            )}
+            {currentTab === 'reports' && (
+              <StoreReports
+                storeId={activeStore.store_id}
+                storeName={activeStore.store_name}
+              />
+            )}
+            {currentTab === 'settings' && (
+              <ShopSettingsView
+                currentStore={activeStore}
+                onLaunchOnboarding={handleLaunchOnboarding}
+                onProfileUpdated={(prof) => {
+                  setActiveStore((prev) => ({
+                    ...prev,
+                    store_name: prof.shop_name,
+                    location: prof.location,
+                  }));
+                }}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            {currentTab === 'executive' && <ExecutiveDashboard />}
+            {currentTab === 'forecasting' && <DemandForecasting />}
+            {currentTab === 'monitoring' && <InventoryMonitoring />}
+            {currentTab === 'policy' && <PolicyComparison />}
+            {currentTab === 'simulation' && <SimulationLab />}
+            {currentTab === 'research' && <ResearchResults />}
+          </>
+        )}
+      </AppShell>
+
+      {/* Onboarding Wizard Modal */}
+      <ShopOnboardingWizard
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        storeId={activeStore.store_id}
+        storeName={activeStore.store_name}
+        onCompleted={handleOnboardingCompleted}
+      />
+
+      {/* Product Deep-Dive Analytics Modal */}
+      {selectedProductIdForAnalytics && (
+        <ProductAnalyticsModal
+          productId={selectedProductIdForAnalytics}
+          storeId={activeStore.store_id}
+          onClose={handleCloseProductAnalytics}
+          onReorder={(sku, qty) => {
+            setCurrentTab('orders');
+          }}
+        />
       )}
-    </AppShell>
+    </>
   );
 };
 
