@@ -1077,8 +1077,26 @@ def get_pos_status(tenant_id: str = "tenant_default", store_id: str = "CA_1"):
     if not store:
         raise HTTPException(status_code=404, detail=f"Store {store_id} not found for tenant {tenant_id}.")
 
-    recent_txs = sales_pipeline.get_recent_transactions(tenant_id, store_id, limit=5)
+    recent_txs = sales_pipeline.get_recent_transactions(tenant_id, store_id, limit=10)
     last_sync = recent_txs[0].created_at.isoformat() if recent_txs else None
+
+    formatted_txs = [
+        {
+            "transaction_id": tx.transaction_id,
+            "timestamp": tx.timestamp.isoformat(),
+            "total_amount": tx.total_amount,
+            "items": [
+                {
+                    "product_id": it.product_id,
+                    "quantity": it.quantity,
+                    "unit_price": it.unit_price,
+                }
+                for it in tx.items
+            ],
+            "status": "processed",
+        }
+        for tx in recent_txs
+    ]
 
     return {
         "tenant_id": tenant_id,
@@ -1089,6 +1107,9 @@ def get_pos_status(tenant_id: str = "tenant_default", store_id: str = "CA_1"):
         "total_transactions_ingested": len(sales_pipeline.get_recent_transactions(tenant_id, store_id, limit=1000)),
         "last_sync_timestamp": last_sync,
         "status": "active" if store.pos_connected else "disconnected",
+        "recent_transactions": formatted_txs,
+        "failed_sync_count": 0,
+        "webhook_url": "http://127.0.0.1:8000/api/pos/webhooks/transactions",
     }
 
 

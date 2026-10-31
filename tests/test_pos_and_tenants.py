@@ -176,3 +176,68 @@ def test_api_pos_webhook_transaction_flow():
     res_batches = client.get("/api/inventory/batches?tenant_id=tenant_default&store_id=CA_1")
     assert res_batches.status_code == 200
     assert res_batches.json()["total_active_batches"] > 0
+
+
+def test_sales_ingestion_atomicity_and_rollback():
+    """Verify that a failure during ingestion rolls back all partial mutations atomically."""
+    import pytest
+
+    ledger = InventoryLedger()
+    tracker = BatchTracker()
+    pipeline = SalesIngestionPipeline(ledger=ledger, batch_tracker=tracker)
+
+    t_id = "tenant_alpha"
+    s_id = "store_alpha"
+    pid1 = "PROD_APPLE"
+    pid2 = "PROD_ORANGE"
+
+    # Seed batches and ledger
+    tracker.receive_batch(t_id, s_id, pid1, 20, shelf_life_days=3)
+    ledger.record_movement(t_id, s_id, pid1, MovementType.PURCHASE_RECEIPT, 20)
+
+    tracker.receive_batch(t_id, s_id, pid2, 30, shelf_life_days=4)
+    ledger.record_movement(t_id, s_id, pid2, MovementType.PURCHASE_RECEIPT, 30)
+
+    assert ledger.get_stock(t_id, s_id, pid1) == 20
+    assert ledger.get_stock(t_id, s_id, pid2) == 30
+
+    # Payload with an invalid quantity on second item (must fail upfront or rollback)
+    invalid_payload = {
+        "transaction_id": "TX_FAIL_01",
+        "items": [
+            {"product_id": pid1, "quantity": 5, "unit_price": 1.50},
+            {"product_id": pid2, "quantity": -10, "unit_price": 2.00},  # Invalid negative
+        ],
+        "total_amount": -12.50,
+    }
+
+    with pytest.raises(ValueError, match="must be positive"):
+        pipeline.process_transaction(t_id, s_id, invalid_payload)
+
+    # Initial stocks must remain strictly unchanged (no partial debit on pid1)
+    assert ledger.get_stock(t_id, s_id, pid1) == 20
+    assert ledger.get_stock(t_id, s_id, pid2) == 30
+    assert len(ledger.get_movements(t_id, s_id, pid1)) == 1  # Only initial receipt
+
+    # Transaction ID should not be recorded as processed
+    assert ("tenant_alpha", "store_alpha", "TX_FAIL_01") not in pipeline._processed_transactions
+
+
+def test_tenant_isolation_boundary():
+    """Verify that tenant boundaries are strictly isolated across stores and endpoints."""
+    # Attempting to access non-existent or foreign tenant store should return 404
+    res = client.get("/api/pos/status?tenant_id=foreign_tenant&store_id=CA_1")
+    assert res.status_code == 404
+
+    res_post = client.post(
+        "/api/pos/webhooks/transactions",
+        json={
+            "transaction_id": "TX_FOREIGN_1",
+            "tenant_id": "foreign_tenant",
+            "store_id": "CA_1",
+            "items": [{"product_id": "FOODS_2_043_CA_1", "quantity": 1, "unit_price": 2.0}],
+            "total_amount": 2.0,
+        },
+    )
+    assert res_post.status_code == 404
+

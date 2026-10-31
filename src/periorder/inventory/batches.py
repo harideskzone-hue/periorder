@@ -137,3 +137,10 @@ class BatchTracker:
         """Identifies batches expiring within the specified threshold."""
         batches = self.get_batches(tenant_id, store_id)
         return [b for b in batches if 0 <= b.days_until_expiry <= within_days]
+
+    def restore_deductions(self, deductions: list[BatchDeduction]) -> None:
+        """Restores deducted batch quantities in case an ingestion transaction fails."""
+        for ded in deductions:
+            if ded.batch_id in self._batches:
+                self._batches[ded.batch_id].quantity += ded.deducted_quantity
+

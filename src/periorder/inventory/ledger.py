@@ -83,3 +83,12 @@ class InventoryLedger:
             and (product_id is None or m.product_id == product_id)
         ]
         return sorted(results, key=lambda m: m.timestamp, reverse=True)[:limit]
+
+    def rollback_movement(self, movement: InventoryMovement) -> None:
+        """Rolls back a movement to preserve atomic consistency in case of transaction failure."""
+        if movement in self._movements:
+            self._movements.remove(movement)
+            key = (movement.tenant_id, movement.store_id, movement.product_id)
+            if key in self._stock_cache:
+                self._stock_cache[key] -= movement.quantity
+

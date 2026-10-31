@@ -8,6 +8,7 @@ import { MyInventory } from './components/MyInventory';
 import { WhatShouldIOrder } from './components/WhatShouldIOrder';
 import { DemandOutlook } from './components/DemandOutlook';
 import { StoreReports } from './components/StoreReports';
+import { POSIntegration } from './components/POSIntegration';
 
 // Research & Analytics Views
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
@@ -41,6 +42,7 @@ export const App: React.FC = () => {
               onNavigateToOrders={() => setCurrentTab('orders')}
               onNavigateToInventory={() => setCurrentTab('inventory')}
               onNavigateToReports={() => setCurrentTab('reports')}
+              onNavigateToPOS={() => setCurrentTab('pos')}
             />
           )}
           {currentTab === 'inventory' && (
@@ -51,6 +53,7 @@ export const App: React.FC = () => {
           {currentTab === 'orders' && <WhatShouldIOrder />}
           {currentTab === 'outlook' && <DemandOutlook />}
           {currentTab === 'reports' && <StoreReports />}
+          {currentTab === 'pos' && <POSIntegration />}
         </>
       ) : (
         <>

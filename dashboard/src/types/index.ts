@@ -5,7 +5,8 @@ export type StoreManagerTab =
   | 'inventory' 
   | 'orders' 
   | 'outlook' 
-  | 'reports';
+  | 'reports'
+  | 'pos';
 
 export type ResearchTab = 
   | 'executive'
@@ -155,6 +156,42 @@ export interface StoreManagerReportsResponse {
     illustrative_data: string;
     disclaimer: string;
   };
+}
+
+export interface POSTransactionItem {
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface POSRecentTransaction {
+  transaction_id: string;
+  timestamp: string;
+  total_amount: number;
+  items: POSTransactionItem[];
+  status: string;
+}
+
+export interface POSStatusResponse {
+  tenant_id: string;
+  store_id: string;
+  store_name: string;
+  pos_connected: boolean;
+  pos_provider: string | null;
+  total_transactions_ingested: number;
+  last_sync_timestamp: string | null;
+  status: 'active' | 'disconnected' | 'error';
+  recent_transactions?: POSRecentTransaction[];
+  failed_sync_count?: number;
+  webhook_url?: string;
+}
+
+export interface TestWebhookPayload {
+  transaction_id: string;
+  tenant_id: string;
+  store_id: string;
+  items: POSTransactionItem[];
+  total_amount: number;
 }
 
 // --- Research Types ---

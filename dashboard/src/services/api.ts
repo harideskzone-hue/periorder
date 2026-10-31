@@ -13,6 +13,8 @@ import {
   SuggestedOrder,
   DemandOutlookResponse,
   StoreManagerReportsResponse,
+  POSStatusResponse,
+  TestWebhookPayload,
 } from '../types';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
@@ -76,6 +78,52 @@ export async function fetchDemandOutlook(): Promise<DemandOutlookResponse> {
 export async function fetchStoreManagerReports(): Promise<StoreManagerReportsResponse> {
   const res = await fetch(`${API_BASE}/store-manager/reports`);
   if (!res.ok) throw new Error('Failed to fetch store reports');
+  return res.json();
+}
+
+export async function fetchPOSStatus(tenantId = 'tenant_default', storeId = 'CA_1'): Promise<POSStatusResponse> {
+  const res = await fetch(`${API_BASE}/pos/status?tenant_id=${tenantId}&store_id=${storeId}`);
+  if (!res.ok) throw new Error('Failed to fetch POS status');
+  return res.json();
+}
+
+export async function sendPOSTransactionWebhook(payload: TestWebhookPayload): Promise<{
+  status: string;
+  transaction_id: string;
+  is_duplicate: boolean;
+  items_deducted: number;
+  reconciled_stock: Record<string, number>;
+  message: string;
+}> {
+  const res = await fetch(`${API_BASE}/pos/webhooks/transactions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({ detail: 'Webhook submission failed' }));
+    throw new Error(errorBody.detail || 'Webhook processing failed');
+  }
+  return res.json();
+}
+
+export async function connectPOSProvider(
+  provider = 'generic_mock',
+  tenantId = 'tenant_default',
+  storeId = 'CA_1',
+  credentials: Record<string, any> = {}
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/pos/connect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: tenantId,
+      store_id: storeId,
+      provider,
+      credentials,
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to connect POS provider');
   return res.json();
 }
 

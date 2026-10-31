@@ -1,11 +1,12 @@
 """POS sales transaction ingestion pipeline with idempotency and ledger reconciliation."""
 
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from periorder.inventory.batches import BatchDeduction, BatchTracker
-from periorder.inventory.ledger import InventoryLedger, MovementType
+from periorder.inventory.ledger import InventoryLedger, InventoryMovement, MovementType
 
 
 @dataclass
@@ -38,7 +39,7 @@ class IngestionResult:
 
 
 class SalesIngestionPipeline:
-    """Ingests POS transactions, enforces idempotency, and reconciles inventory."""
+    """Ingests POS transactions, enforces idempotency, and reconciles inventory atomically."""
 
     def __init__(
         self,
@@ -47,6 +48,7 @@ class SalesIngestionPipeline:
     ) -> None:
         self.ledger = ledger
         self.batch_tracker = batch_tracker
+        self._lock = threading.RLock()
         # Idempotency storage: (tenant_id, store_id, transaction_id)
         self._processed_transactions: set[tuple] = set()
         self._transactions: list[SalesTransaction] = []
@@ -57,84 +59,105 @@ class SalesIngestionPipeline:
         store_id: str,
         transaction_data: dict[str, Any],
     ) -> IngestionResult:
-        """Processes a single POS transaction event with idempotency guarantees."""
-        tx_id = transaction_data.get("transaction_id")
-        if not tx_id:
-            raise ValueError("Transaction missing transaction_id.")
+        """Processes a single POS transaction event with idempotency and atomic guarantees."""
+        with self._lock:
+            tx_id = transaction_data.get("transaction_id")
+            if not tx_id:
+                raise ValueError("Transaction missing transaction_id.")
 
-        idempotency_key = (tenant_id, store_id, tx_id)
-        if idempotency_key in self._processed_transactions:
+            idempotency_key = (tenant_id, store_id, tx_id)
+            if idempotency_key in self._processed_transactions:
+                return IngestionResult(
+                    status="duplicate_skipped",
+                    transaction_id=tx_id,
+                    is_duplicate=True,
+                    deductions=[],
+                    reconciled_stock={},
+                    message=f"Transaction {tx_id} was already ingested; duplicate event skipped safely.",
+                )
+
+            items_raw = transaction_data.get("items", [])
+            if not items_raw:
+                raise ValueError("Transaction must contain at least one item.")
+
+            # Upfront validation of all items to fail before mutating ledger or batches
+            parsed_items: list[SalesItem] = []
+            for item in items_raw:
+                pid = item.get("product_id")
+                if not pid:
+                    raise ValueError("Each transaction item must specify a valid product_id.")
+                try:
+                    qty = int(item.get("quantity", 1))
+                except (ValueError, TypeError):
+                    raise ValueError(f"Invalid quantity for item {pid}; must be an integer.")
+                if qty <= 0:
+                    raise ValueError(f"Invalid quantity {qty} for item {pid}; must be positive.")
+                try:
+                    price = float(item.get("unit_price", 0.0))
+                except (ValueError, TypeError):
+                    raise ValueError(f"Invalid unit_price for item {pid}; must be a number.")
+
+                parsed_items.append(SalesItem(product_id=pid, quantity=qty, unit_price=price))
+
+            # Atomic ledger and batch mutation with automatic rollback on error
+            recorded_movements: list[InventoryMovement] = []
+            all_deductions: list[BatchDeduction] = []
+            updated_stocks: dict[str, int] = {}
+
+            try:
+                for item in parsed_items:
+                    # 1. Record negative stock movement in immutable ledger
+                    mov = self.ledger.record_movement(
+                        tenant_id=tenant_id,
+                        store_id=store_id,
+                        product_id=item.product_id,
+                        movement_type=MovementType.POS_SALE,
+                        quantity=-item.quantity,
+                        reference_id=tx_id,
+                        notes=f"POS Sale: {item.quantity} units @ ${item.unit_price:.2f}",
+                    )
+                    recorded_movements.append(mov)
+
+                    # 2. FIFO batch stock deduction
+                    batch_deductions = self.batch_tracker.deduct_fifo(
+                        tenant_id=tenant_id,
+                        store_id=store_id,
+                        product_id=item.product_id,
+                        quantity_to_deduct=item.quantity,
+                    )
+                    all_deductions.extend(batch_deductions)
+
+                    # 3. Read back reconciled stock
+                    updated_stocks[item.product_id] = self.ledger.get_stock(tenant_id, store_id, item.product_id)
+
+                # Store transaction record upon full success
+                tx = SalesTransaction(
+                    transaction_id=tx_id,
+                    tenant_id=tenant_id,
+                    store_id=store_id,
+                    timestamp=datetime.now(UTC),
+                    items=parsed_items,
+                    total_amount=float(transaction_data.get("total_amount", 0.0)),
+                    raw_payload=transaction_data,
+                )
+                self._transactions.append(tx)
+                self._processed_transactions.add(idempotency_key)
+
+            except Exception:
+                # Roll back any partial mutations to maintain atomic integrity
+                for mov in recorded_movements:
+                    self.ledger.rollback_movement(mov)
+                self.batch_tracker.restore_deductions(all_deductions)
+                raise
+
             return IngestionResult(
-                status="duplicate_skipped",
+                status="success",
                 transaction_id=tx_id,
-                is_duplicate=True,
-                deductions=[],
-                reconciled_stock={},
-                message=f"Transaction {tx_id} was already ingested; duplicate event skipped safely.",
+                is_duplicate=False,
+                deductions=all_deductions,
+                reconciled_stock=updated_stocks,
+                message=f"Successfully ingested transaction {tx_id} with {len(parsed_items)} items.",
             )
-
-        items_raw = transaction_data.get("items", [])
-        if not items_raw:
-            raise ValueError("Transaction must contain at least one item.")
-
-        parsed_items: list[SalesItem] = []
-        all_deductions: list[BatchDeduction] = []
-        updated_stocks: dict[str, int] = {}
-
-        for item in items_raw:
-            pid = item.get("product_id")
-            qty = int(item.get("quantity", 1))
-            price = float(item.get("unit_price", 0.0))
-
-            if qty <= 0:
-                raise ValueError(f"Invalid quantity {qty} for item {pid}; must be positive.")
-
-            parsed_items.append(SalesItem(product_id=pid, quantity=qty, unit_price=price))
-
-            # 1. Record negative stock movement in immutable ledger
-            self.ledger.record_movement(
-                tenant_id=tenant_id,
-                store_id=store_id,
-                product_id=pid,
-                movement_type=MovementType.POS_SALE,
-                quantity=-qty,
-                reference_id=tx_id,
-                notes=f"POS Sale: {qty} units @ ${price:.2f}",
-            )
-
-            # 2. FIFO batch stock deduction
-            batch_deductions = self.batch_tracker.deduct_fifo(
-                tenant_id=tenant_id,
-                store_id=store_id,
-                product_id=pid,
-                quantity_to_deduct=qty,
-            )
-            all_deductions.extend(batch_deductions)
-
-            # 3. Read back reconciled stock
-            updated_stocks[pid] = self.ledger.get_stock(tenant_id, store_id, pid)
-
-        # Store transaction record
-        tx = SalesTransaction(
-            transaction_id=tx_id,
-            tenant_id=tenant_id,
-            store_id=store_id,
-            timestamp=datetime.now(UTC),
-            items=parsed_items,
-            total_amount=float(transaction_data.get("total_amount", 0.0)),
-            raw_payload=transaction_data,
-        )
-        self._transactions.append(tx)
-        self._processed_transactions.add(idempotency_key)
-
-        return IngestionResult(
-            status="success",
-            transaction_id=tx_id,
-            is_duplicate=False,
-            deductions=all_deductions,
-            reconciled_stock=updated_stocks,
-            message=f"Successfully ingested transaction {tx_id} with {len(parsed_items)} items.",
-        )
 
     def get_recent_transactions(
         self,

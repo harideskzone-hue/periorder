@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   ChevronRight,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -45,6 +46,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     { id: 'orders', label: 'Order Suggestions', icon: <ShoppingCart className="w-4 h-4" />, badge: '8' },
     { id: 'outlook', label: 'Demand Outlook', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'reports', label: 'Reports', icon: <FileText className="w-4 h-4" /> },
+    { id: 'pos', label: 'POS Integration', icon: <Zap className="w-4 h-4" />, badge: 'Live' },
   ];
 
   // Research Navigation items

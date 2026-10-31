@@ -15,19 +15,22 @@ import {
   ChevronRight,
   Package,
   TrendingUp,
-  FileText
+  FileText,
+  Zap
 } from 'lucide-react';
 
 interface StoreManagerHomeProps {
   onNavigateToOrders: () => void;
   onNavigateToInventory: () => void;
   onNavigateToReports: () => void;
+  onNavigateToPOS?: () => void;
 }
 
 export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({ 
   onNavigateToOrders, 
   onNavigateToInventory,
-  onNavigateToReports 
+  onNavigateToReports,
+  onNavigateToPOS
 }) => {
   const [data, setData] = useState<StoreManagerOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +93,38 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
           </p>
         </div>
       </div>
+
+      {/* POS Gateway Integration Live Banner */}
+      {onNavigateToPOS && (
+        <div className="card-periorder p-4 bg-gradient-to-r from-[#EFF6FF] via-white to-[#F0FDF4] border border-[#BFDBFE] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-[#2563EB]/10 flex items-center justify-center shrink-0">
+              <Zap className="w-5 h-5 text-[#2563EB]" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-[#0F172A]">POS Gateway Stream</span>
+                <span className="inline-flex items-center text-[10px] bg-[#ECFDF5] text-[#059669] px-2 py-0.5 rounded-full font-semibold border border-[#A7F3D0]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse mr-1"></span>
+                  Connected · Live
+                </span>
+                <span className="text-[11px] text-[#64748B] hidden md:inline">Adapter: Generic / Mock Gateway</span>
+              </div>
+              <p className="text-xs text-[#475569] mt-0.5">
+                Real-time POS webhook listener active for Store CA_1 with idempotent deduplication and FIFO batch depletion.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onNavigateToPOS}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
+          >
+            <span>POS Integration &amp; Webhook Simulator</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* =========================================================================
           B. Four Primary Summary Cards
@@ -372,6 +407,22 @@ export const StoreManagerHome: React.FC<StoreManagerHomeProps> = ({
               </span>
               <ChevronRight className="w-3.5 h-3.5 text-[#94A3B8]" />
             </button>
+
+            {onNavigateToPOS && (
+              <button
+                onClick={onNavigateToPOS}
+                className="w-full py-2.5 px-3 rounded-xl border border-[#E2E8F0] hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] flex items-center justify-between transition-colors"
+              >
+                <span className="flex items-center space-x-2">
+                  <Zap className="w-4 h-4 text-[#2563EB]" />
+                  <span>POS Gateway &amp; Live Sync</span>
+                </span>
+                <span className="inline-flex items-center text-[10px] bg-[#ECFDF5] text-[#059669] px-2 py-0.5 rounded font-semibold border border-[#A7F3D0]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse mr-1"></span>
+                  Active
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="text-[11px] text-[#94A3B8] text-center pt-2 border-t border-[#F1F5F9]">
