@@ -773,17 +773,25 @@ def get_suggested_orders():
 
 
 class OrderConfirmationRequest(BaseModel):
-    order_ids: list[str]
+    order_ids: list[str] = Field(min_length=1)
+    quantities: dict[str, int] = Field(default_factory=dict)
 
 
 @app.post("/api/store-manager/orders/approve")
 def approve_orders(req: OrderConfirmationRequest):
-    """Approves suggested orders and returns confirmation timestamp."""
+    """Records a demo approval; no supplier transmission or purchase order occurs."""
+    if any(quantity < 1 for quantity in req.quantities.values()):
+        raise HTTPException(status_code=422, detail="Order quantities must be at least one unit.")
+    approved_ids = list(dict.fromkeys(req.order_ids))
     return {
-        "status": "success",
-        "approved_count": len(req.order_ids),
-        "message": f"Successfully approved {len(req.order_ids)} orders. Purchase orders transmitted to suppliers.",
-        "confirmation_code": f"PO-{np.random.randint(100000, 999999)}",
+        "status": "demo_approved",
+        "approved_count": len(approved_ids),
+        "message": (
+            f"Recorded an illustrative approval for {len(approved_ids)} order "
+            "recommendation(s). No purchase order was sent to a supplier."
+        ),
+        "confirmation_code": f"DEMO-{np.random.randint(100000, 999999)}",
+        "transmission": "not_connected",
     }
 
 

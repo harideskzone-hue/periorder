@@ -50,16 +50,17 @@ export async function fetchSuggestedOrders(): Promise<{
   return res.json();
 }
 
-export async function approveOrders(orderIds: string[]): Promise<{
+export async function approveOrders(orderIds: string[], quantities?: Record<string, number>): Promise<{
   status: string;
   approved_count: number;
   message: string;
   confirmation_code: string;
+  transmission: string;
 }> {
   const res = await fetch(`${API_BASE}/store-manager/orders/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ order_ids: orderIds }),
+    body: JSON.stringify({ order_ids: orderIds, quantities: quantities ?? {} }),
   });
   if (!res.ok) throw new Error('Failed to approve orders');
   return res.json();
