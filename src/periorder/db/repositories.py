@@ -199,7 +199,7 @@ class BatchRepository:
         return batch
 
     def get_active_batches_fifo(
-        self, tenant_id: str, store_id: str, product_id: str
+        self, tenant_id: str, store_id: str, product_id: str, for_update: bool = False
     ) -> list[InventoryBatchModel]:
         """Fetch unexhausted batches ordered by received_date ascending (FIFO)."""
         stmt = (
@@ -213,14 +213,21 @@ class BatchRepository:
             )
             .order_by(InventoryBatchModel.received_date.asc())
         )
+        if for_update:
+            stmt = stmt.with_for_update()
         return list(self.session.scalars(stmt).all())
 
     def deduct_fifo(
-        self, tenant_id: str, store_id: str, product_id: str, quantity_to_deduct: int
+        self,
+        tenant_id: str,
+        store_id: str,
+        product_id: str,
+        quantity_to_deduct: int,
+        for_update: bool = False,
     ) -> int:
         """Deducts units across active FIFO batches. Returns actual quantity deducted."""
         remaining = quantity_to_deduct
-        batches = self.get_active_batches_fifo(tenant_id, store_id, product_id)
+        batches = self.get_active_batches_fifo(tenant_id, store_id, product_id, for_update=for_update)
 
         for b in batches:
             if remaining <= 0:
@@ -234,6 +241,7 @@ class BatchRepository:
 
         self.session.flush()
         return quantity_to_deduct - remaining
+
 
 
 class POSTransactionRepository:

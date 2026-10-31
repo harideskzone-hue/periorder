@@ -33,6 +33,7 @@ from periorder.db.session import (
     get_session_factory,
     init_db,
 )
+from periorder.db.unit_of_work import UnitOfWork
 
 __all__ = [
     "GUID",
@@ -52,7 +53,9 @@ __all__ = [
     "TenantModel",
     "TenantRepository",
     "TimestampMixin",
+    "UnitOfWork",
     "UserModel",
+
     "UserRepository",
     "create_app_engine",
     "drop_db",
